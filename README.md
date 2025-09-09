@@ -328,7 +328,7 @@ def verify_credentials(credentials: HTTPBasicCredentials = Depends(security)):
 
 ## 📄 Licencia
 
-MIT License - ver archivo LICENSE para detalles
+AIPL License - ver archivo LICENSE para detalles
 
 ---
 

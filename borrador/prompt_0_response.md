@@ -74,7 +74,7 @@ deepwiki/
 
 ├── .gitignore                 # Exclusiones Git
 
-├── LICENSE                    # Licencia MIT
+├── LICENSE                    # Licencia AIPL
 
 ├── data/chroma/               # Datos ChromaDB
 

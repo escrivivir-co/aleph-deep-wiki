@@ -23,6 +23,7 @@ if "%1"=="stop" goto stop
 if "%1"=="restart" goto restart
 if "%1"=="rebuild" goto rebuild
 if "%1"=="rebuild-etl" goto rebuild_etl
+if "%1"=="rebuild-qa" goto rebuild_qa
 if "%1"=="rebuild-all" goto rebuild_all
 if "%1"=="prepare" goto prepare
 if "%1"=="status" goto status
@@ -55,6 +56,7 @@ echo   stop                   - Detener todos los servicios
 echo   restart                - Reiniciar todos los servicios
 echo   rebuild                - Rebuild y reiniciar servicios (aplica cambios de codigo)
 echo   rebuild-etl            - Rebuild solo el servicio ETL (para cambios en etl/etl.py)
+echo   rebuild-qa             - Rebuild solo el servicio Q^&A API (para cambios en qa/app.py)
 echo   rebuild-all            - Rebuild completo incluyendo ETL
 echo   prepare ^<repo_path^>    - Copiar repositorio local a carpeta repos (sin node_modules)
 echo   status                 - Ver estado de los servicios
@@ -74,6 +76,7 @@ echo   deepwiki.bat copy-repo E:\LAB_AGOSTO\ORACLE_HALT_ALEPH_VERSION\socket-gym
 echo   deepwiki.bat index repos\as-core
 echo   deepwiki.bat test
 echo   deepwiki.bat test "What are the main TypeScript functions?"
+echo   deepwiki.bat rebuild-qa
 echo   deepwiki.bat logs qa
 echo   deepwiki.bat pull codellama
 echo   deepwiki.bat backup
@@ -241,6 +244,25 @@ if errorlevel 1 (
     docker-compose build --no-cache etl
 )
 echo [OK] Servicio ETL rebuildeado
+goto end
+
+:rebuild_qa
+echo [BUILD] Rebuilding servicio Q^&A API...
+echo Esto aplicara cambios en qa/app.py
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar configuración externa
+    echo Rebuilding Q^&A API con configuracion externa...
+    docker-compose -f docker-compose.external-ollama.yml build --no-cache qa
+    docker-compose -f docker-compose.external-ollama.yml restart qa
+) else (
+    REM Hay contenedor de Ollama, usar configuración dockerizada
+    echo Rebuilding Q^&A API con configuracion dockerizada...
+    docker-compose build --no-cache qa
+    docker-compose restart qa
+)
+echo [OK] Servicio Q^&A API rebuildeado
 goto end
 
 :rebuild_all
@@ -471,10 +493,10 @@ echo [OK] Modelo %2 descargado
 goto end
 
 :test_query
-echo 🧪 Probando sistema Q&A...
+echo [TEST] Probando sistema Q^&A...
 
-REM Verificar que la API Q&A esté disponible
-echo [INFO] Verificando que la API Q&A esté disponible...
+REM Verificar que la API Q^&A esté disponible
+echo [INFO] Verificando que la API Q^&A esté disponible...
 curl -s http://localhost:5000/health >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] La API Q&A no está disponible en http://localhost:5000
@@ -538,10 +560,10 @@ if "%2"=="" (
 
 echo.
 echo [INFO] Pruebas completadas. Los servicios disponibles son:
-echo   📖 Wiki: http://localhost:8080
-echo   🤖 Q&A API: http://localhost:5000
-echo   🗄️ ChromaDB: http://localhost:8000
-echo   💬 OpenWebUI: http://localhost:3000
+echo   [WIKI] http://localhost:8080
+echo   [API]  http://localhost:5000
+echo   [DB]   http://localhost:8000
+echo   [CHAT] http://localhost:3000
 goto end
 
 :backup

@@ -29,7 +29,9 @@ print_help() {
     echo "  restart                - Reiniciar todos los servicios"
     echo "  status                 - Ver estado de los servicios"
     echo "  logs [servicio]        - Ver logs (opcional: de un servicio específico)"
+    echo "  copy-repo <ruta>       - Copiar repositorio local a carpeta repos (respeta .gitignore)"
     echo "  index <repo_url>       - Indexar un repositorio"
+    echo "  test [consulta]        - Probar el sistema Q&A (opcional: consulta personalizada)"
     echo "  health                 - Verificar salud del sistema"
     echo "  models                 - Listar modelos de Ollama"
     echo "  pull <modelo>          - Descargar un modelo específico"
@@ -40,7 +42,10 @@ print_help() {
     echo ""
     echo "Ejemplos:"
     echo "  ./deepwiki.sh start-external"
+    echo "  ./deepwiki.sh copy-repo /path/to/my-repo"
     echo "  ./deepwiki.sh index https://github.com/fastapi/fastapi"
+    echo "  ./deepwiki.sh test"
+    echo "  ./deepwiki.sh test \"What are the main TypeScript functions?\""
     echo "  ./deepwiki.sh logs qa"
     echo "  ./deepwiki.sh pull codellama"
     echo "  ./deepwiki.sh backup"
@@ -276,6 +281,148 @@ cmd_restore() {
     fi
 }
 
+cmd_copy_repo() {
+    local source_path="$1"
+    if [ -z "$source_path" ]; then
+        echo -e "${RED}[ERROR] Debes proporcionar la ruta del repositorio local${NC}"
+        echo "Uso: ./deepwiki.sh copy-repo <ruta_local>"
+        echo "Ejemplo: ./deepwiki.sh copy-repo /path/to/my-repo"
+        exit 1
+    fi
+    
+    if [ ! -d "$source_path" ]; then
+        echo -e "${RED}[ERROR] El directorio fuente no existe: $source_path${NC}"
+        exit 1
+    fi
+    
+    local repo_name=$(basename "$source_path")
+    local dest_path="repos/$repo_name"
+    
+    echo -e "${BLUE}📁 Copiando repositorio local: $repo_name${NC}"
+    echo "   Origen: $source_path"
+    echo "   Destino: $dest_path"
+    
+    # Crear directorio destino si no existe
+    mkdir -p repos
+    
+    if [ -d "$dest_path" ]; then
+        echo -e "${YELLOW}[INFO] Directorio destino ya existe, eliminando...${NC}"
+        rm -rf "$dest_path"
+    fi
+    
+    echo -e "${YELLOW}[INFO] Copiando archivos (excluyendo patrones comunes)...${NC}"
+    
+    # Copiar respetando .gitignore y excluyendo patrones comunes
+    rsync -av \
+        --exclude='node_modules/' \
+        --exclude='.git/' \
+        --exclude='.vscode/' \
+        --exclude='.idea/' \
+        --exclude='dist/' \
+        --exclude='build/' \
+        --exclude='target/' \
+        --exclude='__pycache__/' \
+        --exclude='.pytest_cache/' \
+        --exclude='.coverage/' \
+        --exclude='htmlcov/' \
+        --exclude='.tox/' \
+        --exclude='.venv/' \
+        --exclude='venv/' \
+        --exclude='env/' \
+        --exclude='.env' \
+        --exclude='bower_components/' \
+        --exclude='.sass-cache/' \
+        --exclude='.cache/' \
+        --exclude='.parcel-cache/' \
+        --exclude='.next/' \
+        --exclude='.nuxt/' \
+        --exclude='coverage/' \
+        --exclude='logs/' \
+        --exclude='tmp/' \
+        --exclude='temp/' \
+        --exclude='*.tmp' \
+        --exclude='*.log' \
+        --exclude='*.pyc' \
+        --exclude='*.pyo' \
+        --exclude='*.pyd' \
+        --exclude='.DS_Store' \
+        --exclude='Thumbs.db' \
+        --exclude='desktop.ini' \
+        --exclude='*.key' \
+        --exclude='*.pem' \
+        --exclude='*.p12' \
+        --exclude='*.pfx' \
+        "$source_path/" "$dest_path/"
+    
+    echo -e "${GREEN}[OK] Repositorio copiado exitosamente${NC}"
+    echo -e "${YELLOW}[INFO] Puedes indexarlo ahora con: ./deepwiki.sh index $repo_name${NC}"
+}
+
+cmd_test() {
+    local question="$1"
+    echo -e "${BLUE}🧪 Probando sistema Q&A...${NC}"
+    
+    # Verificar que la API Q&A esté disponible
+    echo -n "[INFO] Verificando que la API Q&A esté disponible... "
+    if ! curl -s http://localhost:5000/health > /dev/null 2>&1; then
+        echo -e "${RED}✗${NC}"
+        echo -e "${RED}[ERROR] La API Q&A no está disponible en http://localhost:5000${NC}"
+        echo -e "${YELLOW}[INFO] Asegúrate de que los servicios estén corriendo con: ./deepwiki.sh start-external${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓${NC}"
+    
+    if [ -z "$question" ]; then
+        # Usar consultas de prueba por defecto
+        echo -e "${YELLOW}[INFO] Usando consultas de prueba por defecto...${NC}"
+        
+        echo -e "${BLUE}[TEST 1] Consultando sobre el repositorio as-core...${NC}"
+        echo 'Pregunta: "What does as-core repository do? Show me the main files and structure"'
+        echo
+        curl -X POST http://localhost:5000/ask \
+             -H "Content-Type: application/json" \
+             -d '{"question": "What does as-core repository do? Show me the main files and structure", "repo_filter": "as-core"}' \
+             2>/dev/null
+        echo -e "\n"
+        
+        echo -e "${BLUE}[TEST 2] Consultando sobre dependencias...${NC}"
+        echo 'Pregunta: "package.json dependencies"'
+        echo
+        curl -X POST http://localhost:5000/ask \
+             -H "Content-Type: application/json" \
+             -d '{"question": "package.json dependencies", "repo_filter": "as-core"}' \
+             2>/dev/null
+        echo -e "\n"
+        
+        echo -e "${BLUE}[TEST 3] Consultando sobre archivos TypeScript...${NC}"
+        echo 'Pregunta: "TypeScript files and their functions"'
+        echo
+        curl -X POST http://localhost:5000/ask \
+             -H "Content-Type: application/json" \
+             -d '{"question": "TypeScript files and their functions", "repo_filter": "as-core"}' \
+             2>/dev/null
+        echo
+        
+    else
+        # Usar consulta personalizada del usuario
+        echo -e "${YELLOW}[INFO] Usando consulta personalizada: $question${NC}"
+        echo -e "${BLUE}[TEST] Consultando: \"$question\"${NC}"
+        echo
+        curl -X POST http://localhost:5000/ask \
+             -H "Content-Type: application/json" \
+             -d "{\"question\": \"$question\", \"repo_filter\": \"as-core\"}" \
+             2>/dev/null
+        echo
+    fi
+    
+    echo
+    echo -e "${YELLOW}[INFO] Pruebas completadas. Los servicios disponibles son:${NC}"
+    echo "  📖 Wiki: http://localhost:8080"
+    echo "  🤖 Q&A API: http://localhost:5000"
+    echo "  🗄️ ChromaDB: http://localhost:8000"
+    echo "  💬 OpenWebUI: http://localhost:3000"
+}
+
 cmd_clean() {
     echo -e "${BLUE}🧹 Limpiando y rebuilding...${NC}"
     echo -e "${YELLOW}¿Estás seguro? Esto eliminará todos los datos. [y/N]${NC}"
@@ -327,6 +474,12 @@ case $1 in
         ;;
     index)
         cmd_index $2
+        ;;
+    copy-repo)
+        cmd_copy_repo "$2"
+        ;;
+    test)
+        cmd_test "$2"
         ;;
     health)
         cmd_health

@@ -99,19 +99,29 @@ def embed_question(question: str) -> List[float]:
 def search_relevant_chunks(question: str, repo_filter: Optional[str] = None, max_results: int = 5):
     """Buscar chunks relevantes en ChromaDB"""
     try:
+        logger.info(f"DEBUG - Generando embedding para: {question[:50]}...")
         embedding = embed_question(question)
+        logger.info(f"DEBUG - Embedding generado, dimensiones: {len(embedding)}")
         
         # Preparar filtros
         where_filter = None
         if repo_filter:
             where_filter = {"repo": {"$eq": repo_filter}}
+            logger.info(f"DEBUG - Usando filtro: {where_filter}")
+        else:
+            logger.info("DEBUG - Sin filtro de repositorio")
         
+        logger.info(f"DEBUG - Consultando ChromaDB con max_results={max_results}")
         results = collection.query(
             query_embeddings=[embedding],
             n_results=max_results,
             where=where_filter,
             include=["documents", "metadatas", "distances"]
         )
+        
+        logger.info(f"DEBUG - Resultados encontrados: {len(results.get('documents', [[]])[0]) if results.get('documents') else 0}")
+        if results.get('documents') and results['documents'][0]:
+            logger.info(f"DEBUG - Distancias: {results.get('distances', [[]])[0][:3] if results.get('distances') else []}")
         
         return results
     except Exception as e:
