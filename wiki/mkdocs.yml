@@ -59,7 +59,7 @@ nav:
   - Inicio: index.md
   - Repositorios:
     - "Información General": repositorios.md
-    - "as-core (FIA Framework)": repos/as-core.md
+    - "as-core (FIA Framework)": as-core.md
 
 extra:
   social:

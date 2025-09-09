@@ -51,8 +51,10 @@ services:
     volumes:
       - ./data/chroma:/chroma/db
     environment:
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
       - IS_PERSISTENT=TRUE
       - PERSIST_DIRECTORY=/chroma/db
+      - ANONYMIZED_TELEMETRY=False
     restart: unless-stopped
     networks:
       - deepwiki
@@ -101,7 +103,8 @@ services:
       - "8080:8000"
     volumes:
       - ./wiki:/docs
-    command: mkdocs serve -a 0.0.0.0:8000
+      - ./repos:/docs/docs/repos:ro
+    command: serve --dev-addr=0.0.0.0:8000
     restart: unless-stopped
     networks:
       - deepwiki
