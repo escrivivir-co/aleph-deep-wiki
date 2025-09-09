@@ -1,0 +1,1 @@
+docker-compose -f docker-compose.external-ollama.yml build --no-cache etl 

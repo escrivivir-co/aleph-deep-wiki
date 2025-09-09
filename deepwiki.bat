@@ -1,5 +1,8 @@
 @echo off
-REM Script de utilidad para DeepWiki en Windows
+REM Script de utilidad para DeepWiki enecho   logs [servicio]        - Ver logs (opcional: de un servicio especifico)
+echo   copy-repo ^<ruta^>        - Copiar repositorio local a carpeta repos (respeta .gitignore)
+echo   index ^<repo_url^>        - Indexar un repositorio
+echo   health                 - Verificar salud del sistemandows
 REM Uso: deepwiki.bat [comando] [argumentos]
 
 setlocal enabledelayedexpansion
@@ -17,9 +20,12 @@ if "%1"=="start-external" goto start_external
 if "%1"=="start-cpu" goto start_cpu
 if "%1"=="stop" goto stop
 if "%1"=="restart" goto restart
+if "%1"=="rebuild" goto rebuild
+if "%1"=="prepare" goto prepare
 if "%1"=="status" goto status
 if "%1"=="logs" goto logs
 if "%1"=="index" goto index
+if "%1"=="copy-repo" goto copy_repo
 if "%1"=="health" goto health
 if "%1"=="models" goto models
 if "%1"=="pull" goto pull_model
@@ -43,6 +49,8 @@ echo   start-external         - Iniciar servicios (usando Ollama externo)
 echo   start-cpu              - Iniciar servicios (version CPU)
 echo   stop                   - Detener todos los servicios
 echo   restart                - Reiniciar todos los servicios
+echo   rebuild                - Rebuild y reiniciar servicios (aplica cambios de codigo)
+echo   prepare ^<repo_path^>    - Copiar repositorio local a carpeta repos (sin node_modules)
 echo   status                 - Ver estado de los servicios
 echo   logs [servicio]        - Ver logs (opcional: de un servicio especifico)
 echo   index ^<repo_url^>       - Indexar un repositorio
@@ -55,8 +63,9 @@ echo   update                 - Actualizar imagenes Docker
 echo.
 echo Ejemplos:
 echo   deepwiki.bat init
-echo   deepwiki.bat start-cpu
-echo   deepwiki.bat index https://github.com/fastapi/fastapi
+echo   deepwiki.bat start-external
+echo   deepwiki.bat copy-repo E:\LAB_AGOSTO\ORACLE_HALT_ALEPH_VERSION\socket-gym\as-core
+echo   deepwiki.bat index repos\as-core
 echo   deepwiki.bat logs qa
 echo   deepwiki.bat pull codellama
 echo   deepwiki.bat backup
@@ -158,14 +167,99 @@ goto end
 
 :stop
 echo 🛑 Deteniendo DeepWiki...
-docker-compose down
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar configuración externa
+    echo Deteniendo servicios con configuración externa...
+    docker-compose -f docker-compose.external-ollama.yml down
+) else (
+    REM Hay contenedor de Ollama, usar configuración dockerizada
+    echo Deteniendo servicios con configuración dockerizada...
+    docker-compose down
+)
 echo [OK] Servicios detenidos
 goto end
 
 :restart
 echo 🔄 Reiniciando DeepWiki...
-docker-compose restart
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar configuración externa
+    echo Reiniciando con configuración externa...
+    docker-compose -f docker-compose.external-ollama.yml restart
+) else (
+    REM Hay contenedor de Ollama, usar configuración dockerizada
+    echo Reiniciando con configuración dockerizada...
+    docker-compose restart
+)
 echo [OK] Servicios reiniciados
+goto end
+
+:rebuild
+echo 🔧 Rebuilding y reiniciando DeepWiki...
+echo Esto aplicará cambios de código y reiniciará servicios
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar configuración externa
+    echo Rebuilding con configuración externa...
+    docker-compose -f docker-compose.external-ollama.yml down
+    docker-compose -f docker-compose.external-ollama.yml build --no-cache
+    docker-compose -f docker-compose.external-ollama.yml up -d
+) else (
+    REM Hay contenedor de Ollama, usar configuración dockerizada
+    echo Rebuilding con configuración dockerizada...
+    docker-compose down
+    docker-compose build --no-cache
+    docker-compose up -d
+)
+echo [OK] Sistema rebuildeado y reiniciado
+goto end
+
+:prepare
+if "%2"=="" (
+    echo [ERROR] Debes proporcionar la ruta del repositorio local
+    echo Uso: deepwiki.bat prepare ^<ruta_del_repositorio^>
+    echo Ejemplo: deepwiki.bat prepare E:/LAB_AGOSTO/ORACLE_HALT_ALEPH_VERSION/socket-gym/as-core
+    goto end
+)
+
+set "source_path=%2"
+set "repo_name="
+for %%f in ("%source_path%") do set "repo_name=%%~nf"
+set "dest_path=repos\%repo_name%"
+
+echo 📁 Preparando repositorio local: %repo_name%
+echo    Origen: %source_path%
+echo    Destino: %dest_path%
+
+REM Verificar que el directorio origen existe
+if not exist "%source_path%" (
+    echo [ERROR] El directorio no existe: %source_path%
+    goto end
+)
+
+REM Crear directorio destino si no existe
+if not exist "repos" mkdir repos
+if exist "%dest_path%" (
+    echo [INFO] Eliminando copia anterior...
+    rmdir /s /q "%dest_path%"
+)
+
+echo [INFO] Copiando archivos (excluyendo node_modules, .git, dist, build, etc.)...
+
+REM Usar robocopy para copiar excluyendo directorios comunes que no queremos
+robocopy "%source_path%" "%dest_path%" /E /XD node_modules .git dist build target .next .nuxt out coverage .nyc_output logs tmp temp .tmp .temp __pycache__ .pytest_cache .vscode .idea .DS_Store /XF *.log *.tmp .env .env.local .env.production package-lock.json yarn.lock /NFL /NDL /NJH /NJS /nc /ns /np
+
+if errorlevel 8 (
+    echo [ERROR] Error copiando archivos
+    goto end
+)
+
+echo [OK] Repositorio preparado en: %dest_path%
+echo [INFO] Ahora puedes indexarlo con: deepwiki.bat index %repo_name%
 goto end
 
 :status
@@ -185,27 +279,88 @@ goto end
 
 :index
 if "%2"=="" (
-    echo [ERROR] Debes proporcionar una URL de repositorio
+    echo [ERROR] Debes proporcionar una URL de repositorio o nombre de repo local
     echo Uso: deepwiki.bat index https://github.com/usuario/repo
+    echo    o: deepwiki.bat index nombre-repo-local
     goto end
 )
-echo 📂 Indexando repositorio: %2
+
+REM Detectar si es una URL o un nombre de repositorio local
+echo %2 | findstr /C:"http" > nul
+if errorlevel 1 (
+    REM No es una URL, asumir que es un repo local
+    set "repo_arg=/app/repos/%2"
+    echo 📂 Indexando repositorio local: %2
+) else (
+    REM Es una URL
+    set "repo_arg=%2"
+    echo 📂 Indexando repositorio remoto: %2
+)
+
 REM Detectar si estamos usando Ollama externo o dockerizado
 docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
 if errorlevel 1 (
     REM No hay contenedor de Ollama, usar configuración externa
     echo Usando configuración de Ollama externo...
-    docker-compose -f docker-compose.external-ollama.yml run --rm etl python etl.py %2
+    docker-compose -f docker-compose.external-ollama.yml run --rm etl python etl.py !repo_arg!
 ) else (
     REM Hay contenedor de Ollama, usar configuración dockerizada
     echo Usando configuración de Ollama dockerizado...
-    docker-compose run --rm etl python etl.py %2
+    docker-compose run --rm etl python etl.py !repo_arg!
 )
 if errorlevel 1 (
     echo [ERROR] Error indexando repositorio
     goto end
 )
 echo [OK] Repositorio indexado
+goto end
+
+:copy_repo
+if "%2"=="" (
+    echo [ERROR] Debes proporcionar la ruta del repositorio local
+    echo Uso: deepwiki.bat copy-repo ^<ruta_local^>
+    echo Ejemplo: deepwiki.bat copy-repo E:\MI_PROYECTO\mi-repo
+    goto end
+)
+
+echo 📁 Copiando repositorio local: %2
+set "source_path=%2"
+set "repo_name="
+
+REM Extraer nombre del repositorio de la ruta
+for %%i in ("%source_path%") do set "repo_name=%%~ni"
+set "dest_path=repos\%repo_name%"
+
+echo Copiando a: %dest_path%
+
+REM Verificar que el directorio fuente existe
+if not exist "%source_path%" (
+    echo [ERROR] El directorio fuente no existe: %source_path%
+    goto end
+)
+
+REM Crear directorio destino si no existe
+if not exist "repos" mkdir repos
+if exist "%dest_path%" (
+    echo [INFO] Directorio destino ya existe, eliminando...
+    rmdir /s /q "%dest_path%"
+)
+
+REM Copiar respetando .gitignore
+echo [INFO] Copiando archivos (excluyendo patrones comunes)...
+robocopy "%source_path%" "%dest_path%" /E /XD node_modules .git .vscode .idea dist build target __pycache__ .pytest_cache .coverage htmlcov .tox .venv venv env .env bower_components .sass-cache .cache .parcel-cache .next .nuxt coverage logs tmp temp *.tmp *.log /XF *.pyc *.pyo *.pyd __pycache__ .DS_Store Thumbs.db desktop.ini .env .env.local .env.production .env.development *.key *.pem *.p12 *.pfx /NP /NDL /NJH > nul
+
+if errorlevel 8 (
+    echo [ERROR] Error copiando repositorio
+    goto end
+) else if errorlevel 4 (
+    echo [WARNING] Algunos archivos no se pudieron copiar, pero continúo...
+) else if errorlevel 1 (
+    echo [INFO] Copia completada con algunos archivos adicionales copiados
+)
+
+echo [OK] Repositorio copiado exitosamente
+echo [INFO] Puedes indexarlo ahora con: deepwiki.bat index repos\%repo_name%
 goto end
 
 :health

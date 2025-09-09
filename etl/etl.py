@@ -188,7 +188,9 @@ def process_repo(repo_url):
                             "repo_url": repo_url
                         }
                         
-                        chunk_id = f"{repo_name}-{rel_path.replace('/', '_').replace('\\', '_')}-{idx}"
+                        # Crear chunk_id sin backslashes en f-string
+                        path_clean = rel_path.replace('/', '_').replace('\\', '_')
+                        chunk_id = f"{repo_name}-{path_clean}-{idx}"
                         
                         collection.add(
                             documents=[chunk],
@@ -245,9 +247,30 @@ if __name__ == "__main__":
 
     repo_url = sys.argv[1]
     
-    # Validar URL
-    if not (repo_url.startswith("http://") or repo_url.startswith("https://")):
-        print("Error: La URL debe comenzar con http:// o https://")
+    # Validar URL o ruta local
+    is_url = repo_url.startswith("http://") or repo_url.startswith("https://")
+    is_local_path = os.path.exists(repo_url)
+    
+    # Verificar si es un nombre de repo en /app/repos/
+    repo_in_container = f"/app/repos/{repo_url}"
+    is_repo_name = os.path.exists(repo_in_container)
+    
+    if not (is_url or is_local_path or is_repo_name):
+        print("Error: Debe ser una URL válida (http/https), una ruta local existente o un nombre de repo en /app/repos/")
+        print("Ejemplos:")
+        print("  python etl.py https://github.com/usuario/mi-repo")
+        print("  python etl.py /path/to/local/repo")
+        print("  python etl.py C:\\path\\to\\local\\repo")
+        print("  python etl.py as-core  # Si existe /app/repos/as-core")
+        sys.exit(1)
+    
+    # Si es solo un nombre, convertir a ruta completa
+    if is_repo_name and not is_local_path:
+        repo_url = repo_in_container
+        print(f"Usando repositorio local: {repo_url}")
+    
+    if not (is_url or os.path.exists(repo_url)):
+        print(f"Error: La ruta {repo_url} no existe")
         sys.exit(1)
 
     try:
