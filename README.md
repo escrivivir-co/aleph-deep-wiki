@@ -36,10 +36,25 @@
 
 ## 🚀 Instalación y Uso
 
-### 1. Inicialización rápida (recomendado)
+### 🌟 Opción A: Con Ollama Externo (Recomendado si ya tienes Ollama)
+
+Si ya tienes **Ollama instalado y funcionando** en tu sistema:
 
 ```bash
-# Descargar e inicializar todo automáticamente
+# Usar tu Ollama externo (más eficiente)
+init-external-ollama.bat     # Windows
+# o  
+./init-external-ollama.sh    # Linux/Mac
+
+# Esto usará tu instalación existente de Ollama
+```
+
+📖 **[Ver guía completa de Ollama Externo](EXTERNAL-OLLAMA-SETUP.md)**
+
+### 🐳 Opción B: Con Ollama Dockerizado
+
+```bash
+# Descargar e inicializar todo automáticamente con Ollama en Docker
 ./init.sh         # Linux/Mac
 # o
 init.bat          # Windows
@@ -47,8 +62,21 @@ init.bat          # Windows
 # Esto descargará los modelos necesarios y levantará todos los servicios
 ```
 
-### 2. Instalación manual
+### 3. Instalación manual
 
+#### Con Ollama Externo
+```bash
+# Asegúrate de que Ollama esté funcionando
+ollama serve
+
+# Instalar modelo de embeddings si no lo tienes
+ollama pull nomic-embed-text
+
+# Levantar servicios DeepWiki
+docker-compose -f docker-compose.external-ollama.yml up -d
+```
+
+#### Con Ollama Dockerizado
 ```bash
 # Para sistemas con GPU
 docker-compose up -d
@@ -61,8 +89,21 @@ docker-compose exec ollama ollama pull nomic-embed-text
 docker-compose exec ollama ollama pull llama3.1
 ```
 
-### 3. Indexar repositorios
+### 4. Indexar repositorios
 
+#### Con Ollama Externo
+```bash
+# Indexar repositorio desde GitHub
+docker-compose -f docker-compose.external-ollama.yml run --rm etl python etl.py https://github.com/usuario/repositorio
+
+# Indexar repositorio local (como tu as-core)
+docker-compose -f docker-compose.external-ollama.yml run --rm etl python etl.py file://e:/LAB_AGOSTO/ORACLE_HALT_ALEPH_VERSION/socket-gym/as-core
+
+# Ejemplos adicionales:
+docker-compose -f docker-compose.external-ollama.yml run --rm etl python etl.py https://github.com/fastapi/fastapi
+```
+
+#### Con Ollama Dockerizado
 ```bash
 # Indexar un repositorio desde GitHub
 docker-compose run etl python etl.py https://github.com/usuario/repositorio
@@ -72,13 +113,31 @@ docker-compose run etl python etl.py https://github.com/fastapi/fastapi
 docker-compose run etl python etl.py https://github.com/microsoft/vscode
 ```
 
-### 4. Usar la plataforma
+### 5. Usar la plataforma
 
-- **💬 Chat interactivo:** http://localhost:3000 (Open WebUI)
-- **📖 Wiki navegable:** http://localhost:8080
-- **🤖 API Q&A:** http://localhost:5000 (Docs en `/docs`)
-- **🧠 Ollama directo:** http://localhost:11434
-- **🗄️ ChromaDB:** http://localhost:8000
+| Servicio | URL | Descripción |
+|----------|-----|-------------|
+| **💬 Open WebUI** | http://localhost:3000 | Chat interactivo (incluido con Ollama externo) |
+| **📖 Wiki** | http://localhost:8080 | Documentación navegable |
+| **🤖 Q&A API** | http://localhost:5000 | API REST (docs en `/docs`) |
+| **🗄️ ChromaDB** | http://localhost:8000 | Base de datos vectorial |
+| **🧠 Ollama** | http://localhost:11434 | Tu Ollama (externo) o dockerizado |
+
+## 🎯 Ejemplo: Indexar tu repositorio as-core
+
+```bash
+# 1. Inicializar DeepWiki con Ollama externo
+init-external-ollama.bat
+
+# 2. Indexar tu repositorio as-core
+docker-compose -f docker-compose.external-ollama.yml run --rm etl python etl.py file://e:/LAB_AGOSTO/ORACLE_HALT_ALEPH_VERSION/socket-gym/as-core
+
+# 3. ¡Ya puedes hacer preguntas!
+# Ve a http://localhost:3000 y pregunta:
+# - "¿Cómo funciona el sistema de threads en as-core?"
+# - "¿Qué hace la clase RuntimeThread?" 
+# - "¿Cómo se configuran los paquetes en este proyecto?"
+```
 
 ## 💬 Consultas Q&A
 
