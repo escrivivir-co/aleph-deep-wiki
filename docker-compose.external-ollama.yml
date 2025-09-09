@@ -14,7 +14,6 @@ services:
       - IS_PERSISTENT=TRUE
       - PERSIST_DIRECTORY=/chroma/chroma
       - ANONYMIZED_TELEMETRY=False
-    command: uvicorn chromadb.app:app --host 0.0.0.0 --port 8000
     restart: unless-stopped
     networks:
       - deepwiki
@@ -64,7 +63,7 @@ services:
     volumes:
       - ./wiki:/docs
       - ./repos:/docs/docs/repos:ro
-    command: mkdocs serve --dev-addr=0.0.0.0:8000
+    command: serve --dev-addr=0.0.0.0:8000
     networks:
       - deepwiki
     restart: unless-stopped
