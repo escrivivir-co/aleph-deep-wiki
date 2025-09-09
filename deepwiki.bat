@@ -13,6 +13,7 @@ if "%1"=="-h" goto help
 
 if "%1"=="init" goto init
 if "%1"=="start" goto start
+if "%1"=="start-external" goto start_external
 if "%1"=="start-cpu" goto start_cpu
 if "%1"=="stop" goto stop
 if "%1"=="restart" goto restart
@@ -37,7 +38,8 @@ echo Uso: deepwiki.bat [comando] [argumentos]
 echo.
 echo Comandos disponibles:
 echo   init                   - Inicializar con modelos de Ollama
-echo   start                  - Iniciar todos los servicios
+echo   start                  - Iniciar todos los servicios (con Ollama dockerizado)
+echo   start-external         - Iniciar servicios (usando Ollama externo)
 echo   start-cpu              - Iniciar servicios (version CPU)
 echo   stop                   - Detener todos los servicios
 echo   restart                - Reiniciar todos los servicios
@@ -93,6 +95,33 @@ echo   🤖 Q^&A API: http://localhost:5000
 echo   💬 Open WebUI: http://localhost:3000
 echo   🗄️ ChromaDB: http://localhost:8000
 echo   🧠 Ollama: http://localhost:11434
+goto end
+
+:start_external
+echo 🚀 Iniciando DeepWiki (usando Ollama externo)...
+echo [INFO] Verificando que Ollama externo esté disponible...
+
+REM Verificar que Ollama externo está corriendo
+curl -s http://localhost:11434/api/tags >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] No se puede conectar a Ollama en http://localhost:11434
+    echo [INFO] Asegurate de que Ollama esté corriendo con: ollama serve
+    goto end
+)
+echo [OK] Ollama externo está disponible
+
+docker-compose -f docker-compose.external-ollama.yml up -d
+if errorlevel 1 (
+    echo [ERROR] No se pudieron iniciar los servicios
+    goto end
+)
+echo [OK] Servicios iniciados (usando Ollama externo)
+echo.
+echo Servicios disponibles:
+echo   📖 Wiki: http://localhost:8080
+echo   🤖 Q^&A API: http://localhost:5000
+echo   🗄️ ChromaDB: http://localhost:8000
+echo   🧠 Ollama (externo): http://localhost:11434
 goto end
 
 :start_cpu

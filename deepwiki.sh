@@ -21,7 +21,8 @@ print_help() {
     echo "Uso: ./deepwiki.sh [comando] [argumentos]"
     echo ""
     echo "Comandos disponibles:"
-    echo "  start                  - Iniciar todos los servicios"
+    echo "  start                  - Iniciar todos los servicios (con Ollama dockerizado)"
+    echo "  start-external         - Iniciar servicios (usando Ollama externo)"
     echo "  stop                   - Detener todos los servicios"
     echo "  restart                - Reiniciar todos los servicios"
     echo "  status                 - Ver estado de los servicios"
@@ -66,6 +67,28 @@ check_models() {
         echo -e "${YELLOW}! llama3 no encontrado${NC}"
         echo "Instala el modelo: ollama pull llama3"
     fi
+}
+
+cmd_start_external() {
+    echo -e "${BLUE}🚀 Iniciando DeepWiki (usando Ollama externo)...${NC}"
+    echo -e "${YELLOW}[INFO] Verificando que Ollama externo esté disponible...${NC}"
+    
+    # Verificar que Ollama externo está corriendo
+    if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+        echo -e "${RED}[ERROR] No se puede conectar a Ollama en http://localhost:11434${NC}"
+        echo -e "${YELLOW}[INFO] Asegúrate de que Ollama esté corriendo con: ollama serve${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}[OK] Ollama externo está disponible${NC}"
+    
+    docker-compose -f docker-compose.external-ollama.yml up -d
+    echo -e "${GREEN}✓ Servicios iniciados (usando Ollama externo)${NC}"
+    echo ""
+    echo "Servicios disponibles:"
+    echo "  📖 Wiki: http://localhost:8080"
+    echo "  🤖 Q&A API: http://localhost:5000"
+    echo "  🗄️ ChromaDB: http://localhost:8000"
+    echo "  🧠 Ollama (externo): http://localhost:11434"
 }
 
 cmd_start() {
@@ -197,6 +220,9 @@ cmd_update() {
 case $1 in
     start)
         cmd_start
+        ;;
+    start-external)
+        cmd_start_external
         ;;
     stop)
         cmd_stop

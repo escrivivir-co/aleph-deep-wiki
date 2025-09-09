@@ -1,0 +1,78 @@
+version: "3.9"
+
+services:
+  # ChromaDB Vector Database
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: deepwiki_chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/chroma:/chroma/chroma
+    environment:
+      - CHROMA_SERVER_CORS_ALLOW_ORIGINS=["*"]
+      - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=False
+    command: uvicorn chromadb.app:app --host 0.0.0.0 --port 8000
+    restart: unless-stopped
+    networks:
+      - deepwiki
+
+  # ETL Service - Indexador de repositorios
+  etl:
+    build: ./etl
+    container_name: deepwiki_etl
+    depends_on:
+      - chroma
+    volumes:
+      - ./repos:/app/repos
+      - ./data/repos:/app/data/repos
+    environment:
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434  # Tu Ollama externo
+      - EMBEDDING_MODEL=nomic-embed-text
+    networks:
+      - deepwiki
+    profiles:
+      - tools
+
+  # Q&A API Service
+  qa:
+    build: ./qa
+    container_name: deepwiki_qa
+    ports:
+      - "5000:5000"
+    depends_on:
+      - chroma
+    environment:
+      - CHROMA_HOST=chroma
+      - CHROMA_PORT=8000
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434  # Tu Ollama externo
+      - DEFAULT_MODEL=llama3.1
+    networks:
+      - deepwiki
+    restart: unless-stopped
+
+  # Wiki MkDocs
+  wiki:
+    image: squidfunk/mkdocs-material:latest
+    container_name: deepwiki_wiki
+    ports:
+      - "8080:8000"
+    volumes:
+      - ./wiki:/docs
+      - ./repos:/docs/docs/repos:ro
+    command: mkdocs serve --dev-addr=0.0.0.0:8000
+    networks:
+      - deepwiki
+    restart: unless-stopped
+
+networks:
+  deepwiki:
+    driver: bridge
+
+volumes:
+  chroma_data:
+  repos_data:
