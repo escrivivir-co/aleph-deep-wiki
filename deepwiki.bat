@@ -1,9 +1,5 @@
 @echo off
-REM Script de utilidad para DeepWiki enecho   logs [servicio]        - Ver logs (opcional: de un servicio especifico)
-echo   copy-repo ^<ruta^>        - Copiar repositorio local a carpeta repos (respeta .gitignore)
-echo   index ^<repo_url^>       - Indexar un repositorio
-echo   test [consulta]          - Probar el sistema Q^&A (opcional: consulta personalizada)
-echo   health                 - Verificar salud del sistema
+REM Script de utilidad para DeepWiki
 REM Uso: deepwiki.bat [comando] [argumentos]
 
 setlocal enabledelayedexpansion
