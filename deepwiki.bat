@@ -509,7 +509,7 @@ if "%2"=="" (
     echo [INFO] Usando consultas de prueba por defecto...
     
     REM Crear archivo temporal con consulta de prueba
-    echo {"question": "What does as-core repository do? Show me the main files and structure", "repo_filter": "as-core"} > test_temp.json
+    echo {"question": "What does as-core repository do? Show me the main files and structure", "repo_filter": "as-core", "model": "gpt-oss:20b"} > test_temp.json
     
     echo [TEST 1] Consultando sobre el repositorio as-core...
     echo Pregunta: "What does as-core repository do? Show me the main files and structure"
@@ -519,7 +519,7 @@ if "%2"=="" (
     echo.
     
     REM Segunda consulta de prueba
-    echo {"question": "package.json dependencies", "repo_filter": "as-core"} > test_temp2.json
+    echo {"question": "package.json dependencies", "repo_filter": "as-core", "model": "gpt-oss:20b"} > test_temp2.json
     
     echo [TEST 2] Consultando sobre dependencias...
     echo Pregunta: "package.json dependencies"
@@ -529,7 +529,7 @@ if "%2"=="" (
     echo.
     
     REM Tercera consulta de prueba más específica
-    echo {"question": "TypeScript files and their functions", "repo_filter": "as-core"} > test_temp3.json
+    echo {"question": "TypeScript files and their functions", "repo_filter": "as-core", "model": "gpt-oss:20b"} > test_temp3.json
     
     echo [TEST 3] Consultando sobre archivos TypeScript...
     echo Pregunta: "TypeScript files and their functions"
@@ -547,7 +547,7 @@ if "%2"=="" (
     echo [INFO] Usando consulta personalizada: %2
     
     REM Crear archivo temporal con la consulta del usuario
-    echo {"question": "%2", "repo_filter": "as-core"} > test_custom.json
+    echo {"question": "%2", "repo_filter": "as-core", "model": "gpt-oss:20b"} > test_custom.json
     
     echo [TEST] Consultando: "%2"
     echo.

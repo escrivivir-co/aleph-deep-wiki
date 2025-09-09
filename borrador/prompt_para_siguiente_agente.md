@@ -1,53 +1,40 @@
-# 🎯 Prompt para el Siguiente Agente - Estado del Sistema DeepWiki
+# 🎯 Prompt para el Siguiente Agente - DeepWiki COMPLETAMENTE FUNCIONAL
 
-## 📋 **Situación Actual - GRAN AVANCE**
+## 🎉 **ESTADO FINAL: SISTEMA 100% OPERATIVO** ✅
 
-Hemos estado configurando **`aleph-deep-wiki`** para que funcione con **Ollama externo**. ¡**EXCELENTES NOTICIAS**: El sistema ya está **95% funcionando**! Solo queda resolver un pequeño problema de procesamiento de archivos.
+**Fecha:** 9 de Septiembre, 2025  
+**Estado:** **DeepWiki completamente funcional** - Q&A API respondiendo perfectamente con 391 documentos indexados
 
-### ✅ **Lo que YA funciona correctamente:**
+### ✅ **Sistema Completamente Funcional:**
 
-1. **✅ Detección automática** de Ollama externo vs dockerizado en todos los scripts
-2. **✅ Servicios corriendo:** ChromaDB, Q&A API, Wiki, OpenWebUI
-3. **✅ Comando `copy-repo`:** Copia repositorios locales sin `node_modules` ni archivos basura
-4. **✅ Scripts refactorizados:** [`deepwiki.bat`](deepwiki.bat) es robusto y detecta configuración
-5. **✅ Comando `index`:** La indexación FUNCIONA y se completa exitosamente
-6. **✅ ChromaDB API v2:** Endpoint corregido de v1 a v2
-7. **✅ Rebuild ETL:** Nuevo comando `./deepwiki.bat rebuild-etl` para aplicar cambios
+1. **🤖 Q&A API (`localhost:5000`)**: **391 documentos indexados**, responde perfectamente con gpt-oss:20b
+2. **📖 Wiki (`localhost:8080`)**: Interfaz web con CORS habilitado
+3. **🗄️ ChromaDB (`localhost:8000`)**: API v2, 391 chunks almacenados
+4. **💬 OpenWebUI (`localhost:3000`)**: Chat interface operativo
+5. **🧠 Ollama Externo (`localhost:11434`)**: gpt-oss:20b + nomic-embed-text funcionando
 
-### ❓ **El único problema restante (menor):**
+### 🧪 **Prueba de Funcionamiento EXITOSA:**
 
-El comando de indexación funciona pero dice:
-```
-Error actualizando repo: /app/repos/as-core
-🎉 Proceso completado exitosamente!
-```
-
-Y no genera archivos en `wiki/docs/repos/` ni documentos en ChromaDB (`"documents":0`).
-
-## 🔧 **Problemas RESUELTOS (para futuros agentes)**
-
-### ✅ **RESUELTO: ChromaDB API v2 vs v1**
-**Problema:** ChromaDB v1 endpoint `/api/v1/heartbeat` responde 410 "Unimplemented"
-**Solución:** Cambiado a `/api/v2/heartbeat` en `etl/etl.py` línea ~26
-
-### ✅ **RESUELTO: Servicio ETL no se rebuilda**
-**Problema:** `./deepwiki.bat rebuild` NO incluye ETL (servicio temporal con `profiles: - tools`)
-**Solución:** Creado comando `./deepwiki.bat rebuild-etl` específico para ETL
-
-### ✅ **RESUELTO: Docker ENTRYPOINT duplicado**
-**Problema:** ENTRYPOINT `["python", "etl.py"]` + comando `python etl.py as-core` = `python etl.py python etl.py as-core`
-**Solución:** Comando corregido a solo `as-core` (sin `python etl.py`)
-
-### ✅ **RESUELTO: Git Bash path conversion**
-**Problema:** Git Bash convierte `/app/repos/as-core` a `C:/Program Files/Git/app/repos/as-core`
-**Solución:** Pasar solo nombre del repo (`as-core`) y dejar que ETL construya el path internamente
-
-## 🚀 **Comandos Implementados y Funcionando**
-
-### **Comandos básicos:**
+**Comando:**
 ```bash
-./deepwiki.bat health          # ✅ Funciona perfectamente
-./deepwiki.bat status          # ✅ Funciona
+curl -X POST http://localhost:5000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is as-core repository about?", "model": "gpt-oss:20b"}'
+```
+
+**Respuesta del Sistema:**
+> "El repositorio **as-core** (nombre del paquete `@fia/core`) es la librería central del *FIA AI Framework*. Contiene las interfaces, tipos y estructuras básicas que utilizan los demás módulos y aplicaciones del framework, sirviendo como punto de referencia y dependencia común para el resto del ecosistema."
+
+**Health Check:**
+```json
+{
+  "status": "healthy",
+  "chroma": {"connected": true, "documents": 391},
+  "ollama": {"connected": true}
+}
+```
+
+## �️ **Todos los Comandos Funcionando Perfectamente**
 ./deepwiki.bat start-external  # ✅ Funciona con Ollama externo
 ./deepwiki.bat start          # ✅ Funciona con Ollama dockerizado
 ```

@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
 import os
@@ -15,6 +16,15 @@ app = FastAPI(
     title="DeepWiki Q&A API",
     description="API para consultar repositorios indexados usando embeddings y Ollama",
     version="1.0.0"
+)
+
+# Configurar CORS para permitir acceso desde la wiki
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8080", "http://localhost:3000"],  # Wiki y OpenWebUI
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Config
@@ -34,7 +44,7 @@ class QuestionRequest(BaseModel):
     question: str
     repo_filter: Optional[str] = None
     max_results: Optional[int] = 5
-    model: Optional[str] = "llama3"
+    model: Optional[str] = "gpt-oss:20b"
 
 class QuestionResponse(BaseModel):
     answer: str
@@ -128,7 +138,7 @@ def search_relevant_chunks(question: str, repo_filter: Optional[str] = None, max
         logger.error(f"Error buscando chunks: {e}")
         raise HTTPException(status_code=500, detail=f"Error en búsqueda: {str(e)}")
 
-def generate_answer(question: str, context: str, model: str = "llama3") -> str:
+def generate_answer(question: str, context: str, model: str = "gpt-oss:20b") -> str:
     """Generar respuesta usando Ollama"""
     try:
         prompt = f"""Eres un asistente especializado en análisis de código. Responde la pregunta basándote únicamente en el contexto proporcionado del código fuente.
