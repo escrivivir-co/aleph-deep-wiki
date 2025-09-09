@@ -48,7 +48,7 @@ def wait_for_services():
     # Esperar Chroma
     for i in range(30):
         try:
-            resp = requests.get(f"http://{CHROMA_HOST}:{CHROMA_PORT}/api/v1/heartbeat")
+            resp = requests.get(f"http://{CHROMA_HOST}:{CHROMA_PORT}/api/v2/heartbeat")
             if resp.status_code == 200:
                 logger.info("✓ Chroma está listo")
                 break

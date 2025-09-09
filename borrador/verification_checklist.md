@@ -58,9 +58,9 @@
 
 ### **5\. Interfaces web funcionando**
 
--   **Open WebUI**: [http://localhost:3000](vscode-file://vscode-app/c:/Program%20Files/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-browser/workbench/workbench.html) (debería mostrar la interfaz)
--   **Wiki**: [http://localhost:8080](vscode-file://vscode-app/c:/Program%20Files/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-browser/workbench/workbench.html) (debería mostrar tu wiki)
--   **QA API docs**: [http://localhost:5000/docs](vscode-file://vscode-app/c:/Program%20Files/Microsoft%20VS%20Code/resources/app/out/vs/code/electron-browser/workbench/workbench.html) (documentación Swagger)
+-   **Open WebUI**: [http://localhost:3000]() (debería mostrar la interfaz)
+-   **Wiki**: [http://localhost:8080]() (debería mostrar tu wiki)
+-   **QA API docs**: [http://localhost:5000/docs]() (documentación Swagger)
 
 ⚠️ **Posibles problemas y soluciones:**
 ---------------------------------------
