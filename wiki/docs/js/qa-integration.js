@@ -110,7 +110,28 @@ async function askQuestion() {
 async function checkAPIHealth() {
     try {
         const API_URL = window.QA_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${API_URL}/health`);
+        
+        // Primero intentar con CORS normal
+        let response;
+        try {
+            response = await fetch(`${API_URL}/health`);
+        } catch (corsError) {
+            console.log('CORS error, trying no-cors mode:', corsError.message);
+            // Si falla CORS, intentar con no-cors
+            response = await fetch(`${API_URL}/health`, { 
+                mode: 'no-cors',
+                method: 'GET'
+            });
+        }
+        
+        // Con no-cors no podemos leer la respuesta, pero si llega aquí significa que la API está disponible
+        if (response.type === 'opaque') {
+            console.log('Q&A API available (no-cors mode)');
+            addStatusIndicator('🟡 Q&A API: Disponible (no-cors)', 'warning');
+            return true;
+        }
+        
+        // Si llegamos aquí con respuesta normal, procesarla
         if (response.ok) {
             const health = await response.json();
             console.log('Q&A API Status:', health);
@@ -118,11 +139,16 @@ async function checkAPIHealth() {
             // Add status indicator to page
             if (health.status === 'healthy') {
                 addStatusIndicator('🟢 Q&A API: Operativo', 'success');
+                return true;
             }
         }
+        
+        return false;
+        
     } catch (error) {
         console.log('Q&A API not available:', error.message);
         addStatusIndicator('🔴 Q&A API: No disponible', 'error');
+        return false;
     }
 }
 
