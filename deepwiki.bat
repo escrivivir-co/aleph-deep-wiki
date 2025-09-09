@@ -63,19 +63,34 @@ echo   deepwiki.bat backup
 goto end
 
 :check_ollama
-echo Verificando Ollama dockerizado...
-docker-compose exec ollama ollama list > nul 2>&1
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
 if errorlevel 1 (
-    echo [WARNING] Ollama no esta disponible en el contenedor
-    echo Usa 'deepwiki.bat init' para inicializar Ollama
+    REM No hay contenedor de Ollama, verificar externo
+    echo Verificando Ollama externo...
+    curl -s http://localhost:11434/api/tags > nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] Ollama externo no esta disponible en localhost:11434
+        echo Asegurate de que Ollama este corriendo localmente
+    ) else (
+        echo [OK] Ollama externo esta corriendo
+    )
 ) else (
-    echo [OK] Ollama esta corriendo en Docker
+    REM Hay contenedor de Ollama, verificar dockerizado
+    echo Verificando Ollama dockerizado...
+    docker-compose exec ollama ollama list > nul 2>&1
+    if errorlevel 1 (
+        echo [WARNING] Ollama no esta disponible en el contenedor
+        echo Usa 'deepwiki.bat init' para inicializar Ollama
+    ) else (
+        echo [OK] Ollama esta corriendo en Docker
+    )
 )
 goto :eof
 
 :init
 echo 🚀 Inicializando DeepWiki...
-echo Esto descargara los modelos necesarios (puede tomar varios minutos)
+echo Esto detectará automáticamente tu configuración de Ollama
 call init.bat
 goto end
 
@@ -175,7 +190,17 @@ if "%2"=="" (
     goto end
 )
 echo 📂 Indexando repositorio: %2
-docker-compose run --rm etl python etl.py %2
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar configuración externa
+    echo Usando configuración de Ollama externo...
+    docker-compose -f docker-compose.external-ollama.yml run --rm etl python etl.py %2
+) else (
+    REM Hay contenedor de Ollama, usar configuración dockerizada
+    echo Usando configuración de Ollama dockerizado...
+    docker-compose run --rm etl python etl.py %2
+)
 if errorlevel 1 (
     echo [ERROR] Error indexando repositorio
     goto end
@@ -207,7 +232,16 @@ goto end
 
 :models
 echo 📋 Modelos disponibles en Ollama:
-docker-compose exec ollama ollama list
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar externo
+    echo Usando Ollama externo...
+    ollama list
+) else (
+    REM Hay contenedor de Ollama, usar dockerizado
+    docker-compose exec ollama ollama list
+)
 goto end
 
 :pull_model
@@ -218,7 +252,16 @@ if "%2"=="" (
     goto end
 )
 echo 📥 Descargando modelo: %2
-docker-compose exec ollama ollama pull %2
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar externo
+    echo Usando Ollama externo...
+    ollama pull %2
+) else (
+    REM Hay contenedor de Ollama, usar dockerizado
+    docker-compose exec ollama ollama pull %2
+)
 if errorlevel 1 (
     echo [ERROR] Error descargando modelo %2
     goto end

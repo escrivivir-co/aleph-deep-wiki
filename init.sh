@@ -1,9 +1,35 @@
 #!/bin/bash
 
-# Script de inicialización para DeepWiki
-# Este script descarga los modelos necesarios de Ollama
+# Script de inicialización inteligente para DeepWiki
+# Detecta automáticamente si usar Ollama dockerizado o externo
 
 set -e
+
+echo "🚀 Inicializando DeepWiki..."
+
+# Detectar si Ollama externo está disponible
+echo "🔍 Detectando configuración de Ollama..."
+if curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+    # Hay Ollama externo disponible
+    echo "✅ Ollama externo detectado en localhost:11434"
+    echo "💡 ¿Quieres usar tu Ollama externo o el dockerizado?"
+    echo "   1. Usar Ollama externo (recomendado si ya lo tienes configurado)"
+    echo "   2. Usar Ollama dockerizado"
+    echo ""
+    read -p "Selecciona opción (1/2): " choice
+    
+    if [ "$choice" = "1" ]; then
+        echo "🌐 Usando Ollama externo..."
+        ./init-external-ollama.sh
+        exit 0
+    else
+        echo "🐳 Usando Ollama dockerizado..."
+    fi
+else
+    # No hay Ollama externo, usar dockerizado
+    echo "ℹ️  Ollama externo no detectado, usando Ollama dockerizado"
+    echo "🐳 Inicializando con Ollama en Docker..."
+fi
 
 echo "🚀 Inicializando DeepWiki con Ollama dockerizado..."
 

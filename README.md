@@ -162,6 +162,25 @@ curl http://localhost:5000/repos | jq
 
 ## 🔧 Comandos Útiles
 
+### Con Ollama Externo
+```bash
+# Ver logs en tiempo real
+docker-compose -f docker-compose.external-ollama.yml logs -f
+
+# Reiniciar un servicio específico
+docker-compose -f docker-compose.external-ollama.yml restart qa
+
+# Parar todos los servicios (manteniendo tu Ollama)
+docker-compose -f docker-compose.external-ollama.yml down
+
+# Ver repositorios indexados
+curl http://localhost:5000/repos | jq
+
+# Ver estado de tu Ollama externo
+curl http://localhost:11434/api/tags | jq
+```
+
+### Con Ollama Dockerizado
 ```bash
 # Ver logs en tiempo real
 docker-compose logs -f

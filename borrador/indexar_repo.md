@@ -1,0 +1,1 @@
+./deepwiki.bat index E:/LAB_AGOSTO/ORACLE_HALT_ALEPH_VERSION/socket-gym/as-core

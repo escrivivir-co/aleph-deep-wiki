@@ -1,9 +1,39 @@
 @echo off
-REM Script de inicialización para DeepWiki en Windows
-REM Este script descarga los modelos necesarios de Ollama
+REM Script de inicialización inteligente para DeepWiki en Windows
+REM Detecta automáticamente si usar Ollama dockerizado o externo
 
 setlocal enabledelayedexpansion
 
+echo 🚀 Inicializando DeepWiki...
+
+REM Detectar si Ollama externo está disponible
+echo 🔍 Detectando configuración de Ollama...
+curl -s http://localhost:11434/api/tags > nul 2>&1
+if errorlevel 1 (
+    REM No hay Ollama externo, usar dockerizado
+    echo ℹ️  Ollama externo no detectado, usando Ollama dockerizado
+    echo 🐳 Inicializando con Ollama en Docker...
+    goto init_docker
+) else (
+    REM Hay Ollama externo disponible
+    echo ✅ Ollama externo detectado en localhost:11434
+    echo 💡 ¿Quieres usar tu Ollama externo o el dockerizado?
+    echo    1. Usar Ollama externo (recomendado si ya lo tienes configurado)
+    echo    2. Usar Ollama dockerizado
+    echo.
+    set /p choice="Selecciona opción (1/2): "
+    
+    if "!choice!"=="1" (
+        echo 🌐 Usando Ollama externo...
+        call init-external-ollama.bat
+        goto end
+    ) else (
+        echo 🐳 Usando Ollama dockerizado...
+        goto init_docker
+    )
+)
+
+:init_docker
 echo 🚀 Inicializando DeepWiki con Ollama dockerizado...
 
 REM Levantar servicios
