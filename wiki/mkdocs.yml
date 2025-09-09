@@ -58,7 +58,8 @@ markdown_extensions:
 nav:
   - Inicio: index.md
   - Repositorios:
-    - "Información": repositorios.md
+    - "Información General": repositorios.md
+    - "as-core (FIA Framework)": repos/as-core.md
 
 extra:
   social:

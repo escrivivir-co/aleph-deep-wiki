@@ -21,9 +21,9 @@ app = FastAPI(
 # Configurar CORS para permitir acceso desde la wiki
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://localhost:3000"],  # Wiki y OpenWebUI
+    allow_origins=["*"],  # Temporal: permitir todos los orígenes
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 

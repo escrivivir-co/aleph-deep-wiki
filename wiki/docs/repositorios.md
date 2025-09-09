@@ -2,25 +2,46 @@
 
 Esta página muestra información sobre todos los repositorios que han sido indexados en DeepWiki.
 
-## Repositorios Disponibles
+## 🎉 Repositorios Indexados (391 documentos)
 
-Los repositorios indexados aparecerán automáticamente aquí cuando ejecutes el proceso ETL.
+### ✅ [as-core](repos/as-core.md) - FIA AI Framework Core
 
-### ¿No ves ningún repositorio?
+**Estado:** ✅ Completamente indexado (54 archivos, 391 chunks)  
+**Descripción:** Librería central del FIA AI Framework (@fia/core) que contiene las interfaces, tipos y estructuras básicas para el ecosistema.
 
-Si aún no has indexado ningún repositorio, puedes empezar con:
+**Archivos principales:**
+- `package.json` - Configuración del paquete npm
+- `packages/core/` - Módulo principal con tipos TypeScript
+- Interfaces y tipos base del framework
 
+**Consulta de ejemplo:**
 ```bash
-# Ejemplo: indexar el repositorio de FastAPI
-docker-compose run etl python etl.py https://github.com/fastapi/fastapi
+curl -X POST http://localhost:5000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What does as-core do?", "model": "gpt-oss:20b"}'
+```
 
-# O tu propio repositorio
-docker-compose run etl python etl.py https://github.com/tu-usuario/tu-repo
+---
+
+## Agregar Nuevos Repositorios
+
+### Desde repositorio local:
+```bash
+# 1. Copiar repositorio
+./deepwiki.bat copy-repo E:\ruta\a\tu\repositorio
+
+# 2. Indexar
+./deepwiki.bat index nombre-repo
+```
+
+### Desde GitHub:
+```bash
+docker-compose run etl python etl.py https://github.com/usuario/repo
 ```
 
 ## API de Repositorios
 
-También puedes consultar la lista de repositorios vía API:
+Consulta información detallada vía API:
 
 ```bash
 curl http://localhost:5000/repos | jq

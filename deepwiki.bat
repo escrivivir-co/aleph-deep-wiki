@@ -24,6 +24,7 @@ if "%1"=="restart" goto restart
 if "%1"=="rebuild" goto rebuild
 if "%1"=="rebuild-etl" goto rebuild_etl
 if "%1"=="rebuild-qa" goto rebuild_qa
+if "%1"=="rebuild-wiki" goto rebuild_wiki
 if "%1"=="rebuild-all" goto rebuild_all
 if "%1"=="prepare" goto prepare
 if "%1"=="status" goto status
@@ -57,6 +58,7 @@ echo   restart                - Reiniciar todos los servicios
 echo   rebuild                - Rebuild y reiniciar servicios (aplica cambios de codigo)
 echo   rebuild-etl            - Rebuild solo el servicio ETL (para cambios en etl/etl.py)
 echo   rebuild-qa             - Rebuild solo el servicio Q^&A API (para cambios en qa/app.py)
+echo   rebuild-wiki           - Rebuild solo el servicio Wiki (para cambios en documentación)
 echo   rebuild-all            - Rebuild completo incluyendo ETL
 echo   prepare ^<repo_path^>    - Copiar repositorio local a carpeta repos (sin node_modules)
 echo   status                 - Ver estado de los servicios
@@ -77,6 +79,7 @@ echo   deepwiki.bat index repos\as-core
 echo   deepwiki.bat test
 echo   deepwiki.bat test "What are the main TypeScript functions?"
 echo   deepwiki.bat rebuild-qa
+echo   deepwiki.bat rebuild-wiki
 echo   deepwiki.bat logs qa
 echo   deepwiki.bat pull codellama
 echo   deepwiki.bat backup
@@ -263,6 +266,23 @@ if errorlevel 1 (
     docker-compose restart qa
 )
 echo [OK] Servicio Q^&A API rebuildeado
+goto end
+
+:rebuild_wiki
+echo [BUILD] Rebuilding servicio Wiki...
+echo Esto aplicara cambios en documentacion y configuracion de wiki
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar configuración externa
+    echo Rebuilding Wiki con configuracion externa...
+    docker-compose -f docker-compose.external-ollama.yml restart wiki
+) else (
+    REM Hay contenedor de Ollama, usar configuración dockerizada
+    echo Rebuilding Wiki con configuracion dockerizada...
+    docker-compose restart wiki
+)
+echo [OK] Servicio Wiki rebuildeado
 goto end
 
 :rebuild_all
