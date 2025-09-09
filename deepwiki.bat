@@ -1,8 +1,9 @@
 @echo off
 REM Script de utilidad para DeepWiki enecho   logs [servicio]        - Ver logs (opcional: de un servicio especifico)
 echo   copy-repo ^<ruta^>        - Copiar repositorio local a carpeta repos (respeta .gitignore)
-echo   index ^<repo_url^>        - Indexar un repositorio
-echo   health                 - Verificar salud del sistemandows
+echo   index ^<repo_url^>       - Indexar un repositorio
+echo   test [consulta]          - Probar el sistema Q^&A (opcional: consulta personalizada)
+echo   health                 - Verificar salud del sistema
 REM Uso: deepwiki.bat [comando] [argumentos]
 
 setlocal enabledelayedexpansion
@@ -31,6 +32,7 @@ if "%1"=="copy-repo" goto copy_repo
 if "%1"=="health" goto health
 if "%1"=="models" goto models
 if "%1"=="pull" goto pull_model
+if "%1"=="test" goto test_query
 if "%1"=="backup" goto backup
 if "%1"=="clean" goto clean
 if "%1"=="update" goto update
@@ -70,6 +72,8 @@ echo   deepwiki.bat init
 echo   deepwiki.bat start-external
 echo   deepwiki.bat copy-repo E:\LAB_AGOSTO\ORACLE_HALT_ALEPH_VERSION\socket-gym\as-core
 echo   deepwiki.bat index repos\as-core
+echo   deepwiki.bat test
+echo   deepwiki.bat test "What are the main TypeScript functions?"
 echo   deepwiki.bat logs qa
 echo   deepwiki.bat pull codellama
 echo   deepwiki.bat backup
@@ -464,6 +468,80 @@ if errorlevel 1 (
     goto end
 )
 echo [OK] Modelo %2 descargado
+goto end
+
+:test_query
+echo 🧪 Probando sistema Q&A...
+
+REM Verificar que la API Q&A esté disponible
+echo [INFO] Verificando que la API Q&A esté disponible...
+curl -s http://localhost:5000/health >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] La API Q&A no está disponible en http://localhost:5000
+    echo [INFO] Asegúrate de que los servicios estén corriendo con: deepwiki.bat start-external
+    goto end
+)
+
+if "%2"=="" (
+    REM Usar consulta por defecto
+    echo [INFO] Usando consultas de prueba por defecto...
+    
+    REM Crear archivo temporal con consulta de prueba
+    echo {"question": "What does as-core repository do? Show me the main files and structure", "repo_filter": "as-core"} > test_temp.json
+    
+    echo [TEST 1] Consultando sobre el repositorio as-core...
+    echo Pregunta: "What does as-core repository do? Show me the main files and structure"
+    echo.
+    curl -X POST http://localhost:5000/ask -H "Content-Type: application/json" --data-binary @test_temp.json
+    echo.
+    echo.
+    
+    REM Segunda consulta de prueba
+    echo {"question": "package.json dependencies", "repo_filter": "as-core"} > test_temp2.json
+    
+    echo [TEST 2] Consultando sobre dependencias...
+    echo Pregunta: "package.json dependencies"
+    echo.
+    curl -X POST http://localhost:5000/ask -H "Content-Type: application/json" --data-binary @test_temp2.json
+    echo.
+    echo.
+    
+    REM Tercera consulta de prueba más específica
+    echo {"question": "TypeScript files and their functions", "repo_filter": "as-core"} > test_temp3.json
+    
+    echo [TEST 3] Consultando sobre archivos TypeScript...
+    echo Pregunta: "TypeScript files and their functions"
+    echo.
+    curl -X POST http://localhost:5000/ask -H "Content-Type: application/json" --data-binary @test_temp3.json
+    echo.
+    
+    REM Limpiar archivos temporales
+    del test_temp.json >nul 2>&1
+    del test_temp2.json >nul 2>&1
+    del test_temp3.json >nul 2>&1
+    
+) else (
+    REM Usar consulta personalizada del usuario
+    echo [INFO] Usando consulta personalizada: %2
+    
+    REM Crear archivo temporal con la consulta del usuario
+    echo {"question": "%2", "repo_filter": "as-core"} > test_custom.json
+    
+    echo [TEST] Consultando: "%2"
+    echo.
+    curl -X POST http://localhost:5000/ask -H "Content-Type: application/json" --data-binary @test_custom.json
+    echo.
+    
+    REM Limpiar archivo temporal
+    del test_custom.json >nul 2>&1
+)
+
+echo.
+echo [INFO] Pruebas completadas. Los servicios disponibles son:
+echo   📖 Wiki: http://localhost:8080
+echo   🤖 Q&A API: http://localhost:5000
+echo   🗄️ ChromaDB: http://localhost:8000
+echo   💬 OpenWebUI: http://localhost:3000
 goto end
 
 :backup

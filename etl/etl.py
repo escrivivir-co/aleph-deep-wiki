@@ -1,6 +1,7 @@
 import os
 import sys
 import git
+from git import InvalidGitRepositoryError
 import requests
 import time
 from chromadb import HttpClient
@@ -132,10 +133,18 @@ def process_repo(repo_url):
         print(f"Actualizando {repo_name}...")
         try:
             repo = git.Repo(repo_path)
-            repo.remotes.origin.pull()
+            if repo.remotes:  # Solo hacer pull si hay remotes configurados
+                repo.remotes.origin.pull()
+                print(f"✓ Repositorio {repo_name} actualizado desde remote")
+            else:
+                print(f"✓ Repositorio local {repo_name} sin remote - usando archivos existentes")
+        except git.InvalidGitRepositoryError:
+            # No es un repositorio git válido, probablemente copiado con copy-repo
+            print(f"✓ Repositorio local {repo_name} (copia de archivos) - procesando directamente")
         except Exception as e:
-            print(f"Error actualizando repo: {e}")
-            return
+            print(f"Error actualizando repo: {repo_path}")
+            print(f"Detalle del error: {e}")
+            print("Continuando con el procesamiento de archivos...")
     else:
         print(f"Clonando {repo_name}...")
         try:
