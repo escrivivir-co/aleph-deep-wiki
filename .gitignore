@@ -1,0 +1,46 @@
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Datos locales
+data/
+repos/
+wiki/docs/*.md
+!wiki/docs/index.md
+!wiki/docs/repositorios.md
+
+# Datos persistentes de servicios
+data/chroma/
+data/ollama/
+data/openui/
+
+# Backups
+deepwiki_backup_*.tar.gz
+deepwiki_backup_*.zip
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# Node
+node_modules/
+npm-debug.log
+
+# Temporal
+tmp/
+temp/
