@@ -247,13 +247,21 @@ if __name__ == "__main__":
 
     repo_url = sys.argv[1]
     
+    print(f"DEBUG - repo_url recibido: {repr(repo_url)}")
+    
     # Validar URL o ruta local
     is_url = repo_url.startswith("http://") or repo_url.startswith("https://")
+    print(f"DEBUG - is_url: {is_url}")
     is_local_path = os.path.exists(repo_url)
+    print(f"DEBUG - is_local_path: {is_local_path}")
     
     # Verificar si es un nombre de repo en /app/repos/
     repo_in_container = f"/app/repos/{repo_url}"
+    print(f"DEBUG - repo_in_container: {repr(repo_in_container)}")
     is_repo_name = os.path.exists(repo_in_container)
+    print(f"DEBUG - is_repo_name: {is_repo_name}")
+    
+    print(f"DEBUG - Validación final: {is_url or is_local_path or is_repo_name}")
     
     if not (is_url or is_local_path or is_repo_name):
         print("Error: Debe ser una URL válida (http/https), una ruta local existente o un nombre de repo en /app/repos/")

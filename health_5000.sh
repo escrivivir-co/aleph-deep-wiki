@@ -1,0 +1,1 @@
+cd /e/LAB_AGOSTO/ORACLE_HALT_ALEPH_VERSION/aleph-deep-wiki && curl -s http://localhost:5000/health

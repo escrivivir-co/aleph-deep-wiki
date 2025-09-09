@@ -21,6 +21,8 @@ if "%1"=="start-cpu" goto start_cpu
 if "%1"=="stop" goto stop
 if "%1"=="restart" goto restart
 if "%1"=="rebuild" goto rebuild
+if "%1"=="rebuild-etl" goto rebuild_etl
+if "%1"=="rebuild-all" goto rebuild_all
 if "%1"=="prepare" goto prepare
 if "%1"=="status" goto status
 if "%1"=="logs" goto logs
@@ -50,6 +52,8 @@ echo   start-cpu              - Iniciar servicios (version CPU)
 echo   stop                   - Detener todos los servicios
 echo   restart                - Reiniciar todos los servicios
 echo   rebuild                - Rebuild y reiniciar servicios (aplica cambios de codigo)
+echo   rebuild-etl            - Rebuild solo el servicio ETL (para cambios en etl/etl.py)
+echo   rebuild-all            - Rebuild completo incluyendo ETL
 echo   prepare ^<repo_path^>    - Copiar repositorio local a carpeta repos (sin node_modules)
 echo   status                 - Ver estado de los servicios
 echo   logs [servicio]        - Ver logs (opcional: de un servicio especifico)
@@ -218,6 +222,44 @@ if errorlevel 1 (
 echo [OK] Sistema rebuildeado y reiniciado
 goto end
 
+:rebuild_etl
+echo 🔧 Rebuilding servicio ETL...
+echo Esto aplicará cambios en etl/etl.py
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar configuración externa
+    echo Rebuilding ETL con configuración externa...
+    docker-compose -f docker-compose.external-ollama.yml build --no-cache etl
+) else (
+    REM Hay contenedor de Ollama, usar configuración dockerizada
+    echo Rebuilding ETL con configuración dockerizada...
+    docker-compose build --no-cache etl
+)
+echo [OK] Servicio ETL rebuildeado
+goto end
+
+:rebuild_all
+echo 🔧 Rebuilding completo incluyendo ETL...
+echo Esto aplicará cambios de código en todos los servicios
+REM Detectar si estamos usando Ollama externo o dockerizado
+docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
+if errorlevel 1 (
+    REM No hay contenedor de Ollama, usar configuración externa
+    echo Rebuilding completo con configuración externa...
+    docker-compose -f docker-compose.external-ollama.yml down
+    docker-compose -f docker-compose.external-ollama.yml build --no-cache
+    docker-compose -f docker-compose.external-ollama.yml up -d
+) else (
+    REM Hay contenedor de Ollama, usar configuración dockerizada
+    echo Rebuilding completo con configuración dockerizada...
+    docker-compose down
+    docker-compose build --no-cache
+    docker-compose up -d
+)
+echo [OK] Sistema completo rebuildeado y reiniciado
+goto end
+
 :prepare
 if "%2"=="" (
     echo [ERROR] Debes proporcionar la ruta del repositorio local
@@ -289,7 +331,7 @@ REM Detectar si es una URL o un nombre de repositorio local
 echo %2 | findstr /C:"http" > nul
 if errorlevel 1 (
     REM No es una URL, asumir que es un repo local
-    set "repo_arg=/app/repos/%2"
+    set "repo_arg=%2"
     echo 📂 Indexando repositorio local: %2
 ) else (
     REM Es una URL
@@ -302,11 +344,11 @@ docker ps --format "table {{.Names}}" | findstr /C:"deepwiki_ollama" > nul 2>&1
 if errorlevel 1 (
     REM No hay contenedor de Ollama, usar configuración externa
     echo Usando configuración de Ollama externo...
-    docker-compose -f docker-compose.external-ollama.yml run --rm etl python etl.py !repo_arg!
+    docker-compose -f docker-compose.external-ollama.yml run --rm etl !repo_arg!
 ) else (
     REM Hay contenedor de Ollama, usar configuración dockerizada
     echo Usando configuración de Ollama dockerizado...
-    docker-compose run --rm etl python etl.py !repo_arg!
+    docker-compose run --rm etl !repo_arg!
 )
 if errorlevel 1 (
     echo [ERROR] Error indexando repositorio

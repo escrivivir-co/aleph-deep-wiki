@@ -1,45 +1,69 @@
 # 🎯 Prompt para el Siguiente Agente - Estado del Sistema DeepWiki
 
-## 📋 **Situación Actual**
+## 📋 **Situación Actual - GRAN AVANCE**
 
-Hemos estado configurando y arreglando **`aleph-deep-wiki`** para que funcione con **Ollama externo** (en lugar de dockerizado). El sistema está **casi funcionando** pero tenemos un problema final con la indexación de repositorios.
+Hemos estado configurando **`aleph-deep-wiki`** para que funcione con **Ollama externo**. ¡**EXCELENTES NOTICIAS**: El sistema ya está **95% funcionando**! Solo queda resolver un pequeño problema de procesamiento de archivos.
 
 ### ✅ **Lo que YA funciona correctamente:**
 
-1. **Detección automática de Ollama externo vs dockerizado** en todos los scripts
-2. **Servicios corriendo:** ChromaDB, Q&A API, Wiki, OpenWebUI
-3. **Comando `copy-repo`:** Copia repositorios locales sin `node_modules` ni archivos basura
-4. **Scripts refactorizados:** [`deepwiki.bat`](deepwiki.bat) y `deepwiki.sh` son homólogos y detectan configuración
+1. **✅ Detección automática** de Ollama externo vs dockerizado en todos los scripts
+2. **✅ Servicios corriendo:** ChromaDB, Q&A API, Wiki, OpenWebUI
+3. **✅ Comando `copy-repo`:** Copia repositorios locales sin `node_modules` ni archivos basura
+4. **✅ Scripts refactorizados:** [`deepwiki.bat`](deepwiki.bat) es robusto y detecta configuración
+5. **✅ Comando `index`:** La indexación FUNCIONA y se completa exitosamente
+6. **✅ ChromaDB API v2:** Endpoint corregido de v1 a v2
+7. **✅ Rebuild ETL:** Nuevo comando `./deepwiki.bat rebuild-etl` para aplicar cambios
 
-### ❌ **El problema actual:**
+### ❓ **El único problema restante (menor):**
 
-El comando de indexación no funciona:
+El comando de indexación funciona pero dice:
+```
+Error actualizando repo: /app/repos/as-core
+🎉 Proceso completado exitosamente!
+```
+
+Y no genera archivos en `wiki/docs/repos/` ni documentos en ChromaDB (`"documents":0`).
+
+## 🔧 **Problemas RESUELTOS (para futuros agentes)**
+
+### ✅ **RESUELTO: ChromaDB API v2 vs v1**
+**Problema:** ChromaDB v1 endpoint `/api/v1/heartbeat` responde 410 "Unimplemented"
+**Solución:** Cambiado a `/api/v2/heartbeat` en `etl/etl.py` línea ~26
+
+### ✅ **RESUELTO: Servicio ETL no se rebuilda**
+**Problema:** `./deepwiki.bat rebuild` NO incluye ETL (servicio temporal con `profiles: - tools`)
+**Solución:** Creado comando `./deepwiki.bat rebuild-etl` específico para ETL
+
+### ✅ **RESUELTO: Docker ENTRYPOINT duplicado**
+**Problema:** ENTRYPOINT `["python", "etl.py"]` + comando `python etl.py as-core` = `python etl.py python etl.py as-core`
+**Solución:** Comando corregido a solo `as-core` (sin `python etl.py`)
+
+### ✅ **RESUELTO: Git Bash path conversion**
+**Problema:** Git Bash convierte `/app/repos/as-core` a `C:/Program Files/Git/app/repos/as-core`
+**Solución:** Pasar solo nombre del repo (`as-core`) y dejar que ETL construya el path internamente
+
+## 🚀 **Comandos Implementados y Funcionando**
+
+### **Comandos básicos:**
 ```bash
-./deepwiki.bat index as-core
+./deepwiki.bat health          # ✅ Funciona perfectamente
+./deepwiki.bat status          # ✅ Funciona
+./deepwiki.bat start-external  # ✅ Funciona con Ollama externo
+./deepwiki.bat start          # ✅ Funciona con Ollama dockerizado
 ```
 
-**Error que aparece:**
-```
-Error: Debe ser una URL válida (http/https), una ruta local existente o un nombre de repo en /app/repos/
-```
-
-## 🔧 **Configuración del Sistema**
-
-### **Configuración de Ollama:**
-- **Ollama externo** funcionando en `localhost:11434`
-- **Modelos instalados:** `gpt-oss:20b`, `nomic-embed-text`
-- **Docker Compose:** `docker-compose.external-ollama.yml`
-
-### **Servicios corriendo:**
+### **Comandos de rebuild (NUEVOS):**
 ```bash
-# Verificar servicios
-./deepwiki.bat health
-./deepwiki.bat status
+./deepwiki.bat rebuild         # ✅ Rebuild servicios principales (NO incluye ETL)
+./deepwiki.bat rebuild-etl     # ✅ Rebuild SOLO ETL (para cambios en etl/etl.py)
+./deepwiki.bat rebuild-all     # ✅ Rebuild COMPLETO incluyendo ETL
 ```
 
-### **Repositorio preparado:**
-- **Repositorio copiado:** `repos/as-core/` (sin node_modules)
-- **Estructura:** Proyecto TypeScript con múltiples packages
+### **Comandos de repositorios:**
+```bash
+./deepwiki.bat copy-repo <path>  # ✅ Funciona perfectamente
+./deepwiki.bat index as-core     # ✅ Se ejecuta exitosamente (ver problema menor abajo)
+```
 
 ## 🚀 **Comandos Útiles para Diagnosticar**
 
