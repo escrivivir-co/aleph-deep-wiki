@@ -1,0 +1,1 @@
+cd /e/LAB_AGOSTO/ORACLE_HALT_ALEPH_VERSION/aleph-deep-wiki && docker-compose -f docker-compose.external-ollama.yml run --rm --entrypoint="bash" etl -c "python -c 'import requests; print(\"Ollama health:\", requests.get(\"http://host.docker.internal:11434/api/tags\").status_code)'"

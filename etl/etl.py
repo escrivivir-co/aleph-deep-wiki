@@ -25,12 +25,12 @@ def wait_for_services():
     # Esperar Chroma
     for i in range(30):
         try:
-            resp = requests.get(f"{CHROMA_URL}/api/v1/heartbeat")
+            resp = requests.get(f"{CHROMA_URL}/api/v2/heartbeat", timeout=5)
             if resp.status_code == 200:
                 print("✓ Chroma está listo")
                 break
-        except requests.exceptions.RequestException:
-            pass
+        except Exception as e:
+            print(f"Intento {i+1}/30: Error Chroma: {e}")
         time.sleep(2)
     else:
         print("❌ No se pudo conectar a Chroma")
@@ -39,12 +39,12 @@ def wait_for_services():
     # Esperar Ollama
     for i in range(30):
         try:
-            resp = requests.get(f"http://{OLLAMA_HOST}:{OLLAMA_PORT}/api/tags")
+            resp = requests.get(f"http://{OLLAMA_HOST}:{OLLAMA_PORT}/api/tags", timeout=5)
             if resp.status_code == 200:
                 print("✓ Ollama está listo")
                 break
-        except requests.exceptions.RequestException:
-            pass
+        except Exception as e:
+            print(f"Intento {i+1}/30: Error Ollama: {e}")
         time.sleep(2)
     else:
         print("❌ No se pudo conectar a Ollama")

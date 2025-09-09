@@ -30,6 +30,8 @@ services:
     environment:
       - CHROMA_HOST=chroma
       - CHROMA_PORT=8000
+      - OLLAMA_HOST=host.docker.internal
+      - OLLAMA_PORT=11434
       - OLLAMA_BASE_URL=http://host.docker.internal:11434  # Tu Ollama externo
       - EMBEDDING_MODEL=nomic-embed-text
     networks:
