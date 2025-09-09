@@ -8,7 +8,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const QA_API_URL = window.QA_API_URL;
     
     // Add Q&A interface to repository pages
-    if (window.location.pathname.includes('/repos/')) {
+    if (window.location.pathname.includes('/repos/') || 
+        window.location.pathname.includes('/as-core') || 
+        window.location.pathname.endsWith('/as-core/')) {
         addQAInterface();
     }
     
