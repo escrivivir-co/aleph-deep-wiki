@@ -1,1 +1,0 @@
-bash -c "cd 'e:\LAB_AGOSTO\ORACLE_HALT_ALEPH_VERSION\aleph-deep-wiki' && ./deepwiki.bat pull gpt-oss:20b"

@@ -1,1 +1,0 @@
-./deepwiki.bat index as-core

@@ -1,1 +1,0 @@
-cd /e/LAB_AGOSTO/ORACLE_HALT_ALEPH_VERSION/aleph-deep-wiki && docker-compose -f docker-compose.external-ollama.yml run --rm --entrypoint="bash" etl -c "python -c 'import requests; print(\"Chroma health:\", requests.get(\"http://chroma:8000/api/v2/heartbeat\").status_code)'"
