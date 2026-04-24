@@ -753,3 +753,130 @@ Según los issues de GitHub, hay trabajo en progreso [](https://github.com/lanc
 | Optimizar consultas como en SQL Server | Pensá en zone maps, pushdown, fragment skipping |
 
 Recomendación para tu stack: Usá LanceDB como "capa de almacenamiento vectorial" y DuckDB como "motor de consultas SQL". Es el equivalente moderno (y FOSS) a tener un almacenamiento columnar optimizado con un optimizador de querys relacional por encima.
+
+# Qdrant
+
+¿Oye, y la tabla comparativa con Qdrant?
+
+Leer 10 páginas web
+
+Aquí tienes la comparativa que me pediste, ahora incorporando a Qdrant en la tabla para que tengas la visión completa de tres alternativas FOSS.
+
+* * * * *
+
+📊 Comparativa: ChromaDB vs LanceDB vs Qdrant
+---------------------------------------------
+
+| Aspecto | ChromaDB | LanceDB | Qdrant |
+| --- | --- | --- | --- |
+| Licencia | Apache 2.0 ✅ | Apache 2.0 ✅ | Apache 2.0 ✅ |
+| Arquitectura | Embedded / Client-Server | Embedded (proceso) | Servidor dedicado |
+| Lenguaje principal | Python (motor en Rust) | Rust | Rust |
+| Almacenamiento | Propietario + HNSW en RAM | Lance columnar (Apache Arrow) | Gridstore (KV propio) + HNSW |
+| Uso de RAM | Alto (índice en memoria) | Bajo (disk-native) | Medio (índice en RAM, vectores en disco) |
+| Escala máxima | Cientos de miles (~500k) | Millones | Cientos de millones [](https://encore.dev/articles/best-vector-databases) |
+| Búsqueda híbrida | ✅ BM25 / SPLADE | ✅ FTS (Tantivy) | ✅ (en roadmap moderno) [](https://data4ai.com/blog/tool-comparisons/best-vector-databases/) |
+| Filtros / Payload | Básico (key-value) | SQL-like (WHERE) | ⭐⭐⭐ Excelente (con índices en payload) [](https://encore.dev/articles/best-vector-databases)[](https://data4ai.com/blog/tool-comparisons/best-vector-databases/) |
+| Distribuido | ❌ | ❌ (cloud beta) | ✅ Sharding + Replicación [](https://encore.dev/articles/best-vector-databases) |
+| GPU acceleration | ❌ | ❌ (limitado) | ✅ (hasta 10x indexación vía Vulkan) [](https://www.lemagit.fr/actualites/366618597/Base-de-donnees-vectorielle-Qdrant-stabilise-et-ameliore-ses-performances) |
+| Multi-proceso seguro | ❌ No | ⚠️ Limitado | ✅ (servidor dedicado) |
+| Cloud managed | En preview | Beta | Qdrant Cloud (estable) [](https://encore.dev/articles/best-vector-databases) |
+
+* * * * *
+
+⚡ Rendimiento comparado (datos benchmark 1M-10M vectores)
+---------------------------------------------------------
+
+| Métrica | ChromaDB | LanceDB | Qdrant |
+| --- | --- | --- | --- |
+| Escala óptima | < 500k vectores [](https://encore.dev/articles/best-vector-databases) | 1M - 10M vectores | 1M - 100M+ vectores |
+| Latencia P95 (1M) | 12-30 ms | 22-58 ms | 18-45 ms |
+| Latencia P95 (10M) | No recomendado (3.2GB+) | 58 ms | 45 ms |
+| Latencia P95 (100M) | ❌ Out of memory | 142 ms | 85 ms (distribuido) [](https://blog.gitcode.com/f61bf1d1b943de9d2f3dd24bddeb7989.html) |
+| Throughput QPS (1M) | ~85 | ~68 | ~72 |
+| Throughput QPS (10M) | ~18 | ~36 | ~42 |
+| Memoria (1M vectores) | 2-4 GB | 2.5 GB | 2.8 GB |
+| Ingestión (escritura) | ~8k vec/s | ~12k vec/s | ~100k vec/s (LSM-Tree) [](https://developer.baidu.com/article/detail.html?id=6609066) |
+| Storage engine | En RAM + HNSW | Lance columnar | Gridstore (2x más rápido que RocksDB) [](https://qdrant.tech/articles/gridstore-key-value-storage/)[](https://www.lemagit.fr/actualites/366618597/Base-de-donnees-vectorielle-Qdrant-stabilise-et-ameliore-ses-performances) |
+
+*Fuente: benchmarks de terceros [](https://blog.gitcode.com/f61bf1d1b943de9d2f3dd24bddeb7989.html) y documentación oficial.*
+
+* * * * *
+
+🎯 Cuadro de decisión para tu equipo FOSS
+-----------------------------------------
+
+| Si tu prioridad es... | Elige... | Por qué |
+| --- | --- | --- |
+| Prototipo rápido / POC | ChromaDB | Zero config, API más simple, experiencia de desarrollo inmejorable [](https://data4ai.com/blog/tool-comparisons/best-vector-databases/) |
+| Ahorrar RAM / Edge / Local-first | LanceDB | Disk-native, columnar, zero-copy, ideal para recursos limitados [](https://encore.dev/articles/best-vector-databases)[](https://data4ai.com/blog/tool-comparisons/best-vector-databases/) |
+| Filtros complejos (RAG empresarial) | Qdrant | Payload filtering con índices, perfecto para queries con metadatos [](https://encore.dev/articles/best-vector-databases)[](https://data4ai.com/blog/tool-comparisons/best-vector-databases/) |
+| Escala horizontal (distribuido) | Qdrant | Sharding nativo, replicación, cloud managed estable [](https://encore.dev/articles/best-vector-databases) |
+| Integración con SQL/Pandas | LanceDB | DuckDB + Lance = JOINs relacionales sobre vectores |
+| Indexación masiva rápida | Qdrant | GPU acceleration (Vulkan) = hasta 10x más rápido [](https://www.lemagit.fr/actualites/366618597/Base-de-donnees-vectorielle-Qdrant-stabilise-et-ameliore-ses-performances) |
+| Equipo multilingüe (Python/JS/Rust) | LanceDB o Qdrant | Ambos tienen SDKs maduros en varios lenguajes |
+| Operación sin overhead de servidor | ChromaDB o LanceDB | Embedded, no requieren proceso separado |
+
+* * * * *
+
+🧠 Análisis por escenario concreto
+----------------------------------
+
+### Escenario 1: RAG con muchos metadatos por documento
+
+Ejemplo: Documentos con `tenant_id`, `department`, `region`, `date`, `access_level`
+
+👉 Gana Qdrant. Tiene payload filtering con índices escalares (BTree, Bitmap) que permiten filtrar millones de documentos con una latencia predecible [](https://encore.dev/articles/best-vector-databases)[](https://developer.baidu.com/article/detail.html?id=6609066). LanceDB y ChromaDB tienen filtros más básicos y menos optimizados para alta cardinalidad.
+
+### Escenario 2: Desktop app o edge device con RAM limitada
+
+Ejemplo: Aplicación local con 2GB de RAM, 500k documentos
+
+👉 Gana LanceDB. Su arquitectura disk-native y zero-copy permite manejar datasets más grandes que la RAM [](https://encore.dev/articles/best-vector-databases)[](https://data4ai.com/blog/tool-comparisons/best-vector-databases/). Qdrant también puede, pero requiere un servidor separado. ChromaDB se quedaría sin memoria.
+
+### Escenario 3: Equipo con expertise SQL
+
+Ejemplo: Quieres hacer JOINs entre vectores y tablas relacionales de metadatos
+
+👉 Gana LanceDB. Integración nativa con DuckDB para SQL analítico. Qdrant no tiene SQL, ChromaDB solo filtros básicos.
+
+### Escenario 4: Escala masiva (>10M vectores) con alta concurrencia
+
+Ejemplo: Búsqueda semántica en un marketplace con millones de productos
+
+👉 Gana Qdrant. Soporta sharding, replicación y cloud managed. Puedes empezar con un solo nodo y escalar horizontalmente sin cambiar de tecnología [](https://encore.dev/articles/best-vector-databases)[](https://blog.gitcode.com/f61bf1d1b943de9d2f3dd24bddeb7989.html).
+
+### Escenario 5: Equipo pequeño, sin ganas de operar otro servicio
+
+Ejemplo: Startup en fase inicial, desarrolladores full-stack con poco tiempo
+
+👉 Gana ChromaDB (para empezar) o LanceDB (si ya sabes que los datos crecerán). Ambos son embedded: no hay que desplegar un servidor aparte.
+
+* * * * *
+
+🏗️ Lo que hace especial a Qdrant (para un experto en motores)
+--------------------------------------------------------------
+
+Si vienes de optimizar stored procedures, te va a interesar qué hay debajo del capó de Qdrant:
+
+1.  Gridstore, no RocksDB: En 2025, Qdrant reemplazó RocksDB con su propio motor de almacenamiento KV llamado Gridstore. Resultado: ingestión 2x más rápida, latencia más estable (sin picos de compactación), y overhead de metadata ridículamente bajo (6KB de metadata por GB de datos) [](https://qdrant.tech/articles/gridstore-key-value-storage/)[](https://www.lemagit.fr/actualites/366618597/Base-de-donnees-vectorielle-Qdrant-stabilise-et-ameliore-ses-performances).
+
+2.  Payload filtering con índices: Puedes crear índices escalares sobre campos del payload (ej: `price`, `category`, `timestamp`) y Qdrant los usará para filtrar antes de la búsqueda vectorial. Equivalente a un `WHERE` sargable en SQL Server [](https://developer.baidu.com/article/detail.html?id=6609066).
+
+3.  GPU para indexación (Vulkan, no CUDA): Qdrant indexa vectores 10x más rápido con GPUs, usando Vulkan (open source) en lugar de CUDA (propietario). Una Nvidia T4 acelera 5x sobre CPU, y una L4 acelera 7.7x [](https://www.lemagit.fr/actualites/366618597/Base-de-donnees-vectorielle-Qdrant-stabilise-et-ameliore-ses-performances).
+
+4.  LSM-Tree para writes: A diferencia de Chroma (que reconstruye HNSW en cada write) y LanceDB (inmutable por diseño), Qdrant usa una arquitectura LSM-Tree que permite 100k inserciones por segundo en un solo nodo [](https://developer.baidu.com/article/detail.html?id=6609066).
+
+* * * * *
+
+💡 Recomendación final para el Scrum
+------------------------------------
+
+| Fase del proyecto | Recomendación |
+| --- | --- |
+| Sprint 0-2 (Prototipo) | ChromaDB (rapidez de desarrollo) |
+| Sprint 3-5 (Piloto con datos reales) | LanceDB (si la RAM es limitada) o Qdrant (si necesitas filtros complejos) |
+| Producción (escala moderada <10M) | LanceDB (simplicidad) o Qdrant (rendimiento) |
+| Producción (escala alta >10M) | Qdrant (distribuido) |
+
+Estrategia híbrida recomendada: Desarrolla local con ChromaDB (modo efímero), haz pruebas de integración con LanceDB (mismo código, diferente URI), y despliega a producción con Qdrant si la escala lo exige. Los tres son Apache 2.0 y tienen bindings en Python/JS, así que el cambio es principalmente de API.
