@@ -1,0 +1,53 @@
+# === Identidad del corpus ===
+nick: decoherencia
+proyecto: PROYECTO_DECOHERENCIA
+mod: onfalo
+banner: azul
+
+# === Fuentes ===
+source_root: onfalo-asesor-sdk/PROYECTOS/PROYECTO_DECOHERENCIA
+sources:
+  - file: CORPUS.md
+    short_id: dco-01
+    collection_suffix: corpus
+    label: "Corpus [DC]"
+    bloque: doc-01
+    tipo: cronologia-empirica
+    summary: "Cronología empírica del conflicto Anthropic–Pentágono–Trump y variación de posturas públicas; base factual del proyecto."
+  - file: BASE.md
+    short_id: dba-02
+    collection_suffix: base
+    label: "Base [DC]"
+    bloque: doc-02
+    tipo: baseline-conceptual
+    summary: "Documento basal sobre b vs c, baseline, TDI y desplazamiento; marco conceptual del experimento de decoherencia."
+  - file: dri.md
+    short_id: dra-03
+    collection_suffix: ratio
+    label: "Ratio [DC]"
+    bloque: doc-03
+    tipo: instrumento-ratio
+    summary: "Formalización del DRI como ratio expansión/compresión, con cotas operativas y señales de ajuste."
+  - file: PROXIMA_SESION.md
+    short_id: dse-04
+    collection_suffix: sesiones
+    label: "Sesiones [DC]"
+    bloque: doc-04
+    tipo: sesion-operativa
+    summary: "Diseño ejecutable de la primera sesión/circuito ONFALO: observar, calibrar, medir, narrar, auditar y etiquetar."
+
+# === Paleta (4 tonos del banner azul índigo reservados para DECOHERENCIA) ===
+palette:
+  - "#deebf7"
+  - "#c6dbef"
+  - "#9ecae1"
+  - "#6baed6"
+
+# === Export GH Pages ===
+export:
+  base_dir: DocumentMachineSDK/docs/azul/cuadernos
+  registry_file: DocumentMachineSDK/docs/_data/cuadernos_onfalo.yml
+  ids_prefix: decoherencia
+
+# === Query de ejemplo ===
+example_query: "¿Cómo conecta PROYECTO_DECOHERENCIA el ratio expansión/compresión con la medición política y cognitiva?"
