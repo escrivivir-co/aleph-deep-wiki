@@ -1,0 +1,288 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# Corpus Ingestor — mod/onfalo · MAPAS_DE_SINGULARIDAD\n\n**Stack**: Node.js / TypeScript · `chromadb` + `chromadb-default-embed` (fork oficial Chroma) · Chroma HTTP server  \n**Embeddings**: `Xenova/all-MiniLM-L6-v2` ONNX — 100% compatible con `DefaultEmbeddingFunction` Python  \n**Puerto Chroma**: `8000`\n\nIngesta los 4 documentos de MAPAS_DE_SINGULARIDAD en 4 colecciones `mo_mapas_*`.\n\n| Colección | Documento | Contenido |\n|-----------|-----------|----------|\n| `mo_mapas_corpus` | `01_el_mapa_de_tres_dimensiones.md` | Ensayo fundacional: lengua × geopolítica × arquitectura |\n| `mo_mapas_geopolitica` | `02_tres_puertas.md` | Contaminación recursiva, multimodalidad, espejo |\n| `mo_mapas_arquitectura` | `03_abstract_tecnico_arquitecturas.md` | Transformer, Mamba, Jamba — epistemología |\n| `mo_mapas_abstract` | `04_la_dimension_conciencia.md` | Cuarta dimensión: el modelo que no sabe que no ve |\n\n---\n\n> ⚠️ **PRERREQUISITO — Chroma HTTP Server en puerto 8000**\n>\n> **Opción A — tarea VS Code:** `Ctrl+Shift+P` → *Tasks: Run Task* → **`VMS: Install|Start [Chroma]`**\n>\n> **Opción B — terminal:** `cd VectorMachineSDK && npm i && bash start.sh`\n>\n> La **celda 3** verifica la conexión e intenta arrancar el servidor automáticamente si no responde.\n\n> ℹ️ **Primera ejecución**: `chromadb-default-embed` descarga el modelo ONNX (~30MB) en `.model-cache/` al generar los primeros embeddings. Las ejecuciones siguientes son instantáneas."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 2: Setup — instalar deps si no están disponibles ───────────────────\n// chromadb-default-embed = fork oficial de Chroma de @xenova/transformers.\n// Misma API, mismo modelo all-MiniLM-L6-v2 (~30MB descarga en runtime, 1ª vez).\n// 100% compatible con los embeddings del ingestor Python.\nconst { execSync } = require('child_process');\nconst path = require('path');\nconst fs = require('fs');\n\nconst NNB_DIR = path.join(\n  process.env.HOME || process.env.USERPROFILE,\n  'OASIS', 'aleph-scriptorium', 'VectorMachineSDK'\n);\n\nconst chromaInstalled = fs.existsSync(path.join(NNB_DIR, 'node_modules', 'chromadb'));\nconst embedInstalled  = fs.existsSync(path.join(NNB_DIR, 'node_modules', 'chromadb-default-embed'));\n\nif (!chromaInstalled || !embedInstalled) {\n  console.log('📦 Instalando deps (chromadb + chromadb-default-embed)...');\n  execSync('npm install', { cwd: NNB_DIR, stdio: 'pipe' });\n  console.log('✓ Deps instaladas');\n} else {\n  console.log('✓ chromadb             :', path.join(NNB_DIR, 'node_modules', 'chromadb'));\n  console.log('✓ chromadb-default-embed:', path.join(NNB_DIR, 'node_modules', 'chromadb-default-embed'));\n}"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ chromadb             : C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\VectorMachineSDK\\node_modules\\chromadb",
+                                "✓ chromadb-default-embed: C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\VectorMachineSDK\\node_modules\\chromadb-default-embed",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 3: Verificar servidor Chroma ────────────────────────────────────────\nconst STORAGE_PATH = path.join(\n  process.env.HOME || process.env.USERPROFILE,\n  'OASIS', 'aleph-scriptorium', 'ARCHIVO', 'PLUGINS', 'VECTOR_MACHINE', 'STORAGE'\n);\n\nasync function isChromaRunning() {\n  try {\n    const ctrl = new AbortController();\n    const t = setTimeout(() => ctrl.abort(), 1500);\n    const r = await fetch('http://localhost:8000/api/v2/heartbeat', { signal: ctrl.signal });\n    clearTimeout(t);\n    return r.ok;\n  } catch { return false; }\n}\n\nconst running = await isChromaRunning();\n\nif (running) {\n  console.log('✓ Chroma server activo en localhost:8000 — listo para ingestar');\n} else {\n  console.log('⚠ Chroma no responde en localhost:8000');\n  console.log('  Tip: ejecuta la tarea VS Code → VMS: Start [Chroma]');\n  console.log('  O desde terminal: cd VectorMachineSDK && bash start.sh');\n  console.log('  Intentando arrancar con uvx...');\n\n  const { spawn } = require('child_process');\n  const srv = spawn(\n    'uvx',\n    ['--from', 'chromadb', 'chroma', 'run', '--path', STORAGE_PATH, '--host', '0.0.0.0', '--port', '8000'],\n    { cwd: NNB_DIR, detached: true, stdio: 'ignore', shell: true }\n  );\n  srv.unref();\n\n  let ready = false;\n  for (let i = 0; i < 30; i++) {\n    await new Promise(r => setTimeout(r, 500));\n    if (await isChromaRunning()) { ready = true; break; }\n  }\n  if (ready) {\n    console.log('✓ Chroma server listo  (pid', srv.pid, ')');\n  } else {\n    console.error('✗ Chroma server no respondió — arranca VMS: Start [Chroma] manualmente');\n  }\n}\n\nconsole.log('Storage:', STORAGE_PATH);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ Chroma server activo en localhost:8000 — listo para ingestar",
+                                "Storage: C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\ARCHIVO\\PLUGINS\\VECTOR_MACHINE\\STORAGE",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 4: Conectar ChromaClient y listar colecciones existentes ─────────────\nconst { ChromaClient } = require(path.join(NNB_DIR, 'node_modules', 'chromadb'));\n\nconst client = new ChromaClient({\n  host: 'localhost',\n  port: 8000,\n  database: 'default_database',\n});\n\nawait client.heartbeat();\nconst existing = await client.listCollections();\nconsole.log('✓ Conectado a Chroma HTTP server');\nconsole.log('Colecciones existentes:', existing.map(c => c.name));"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ Conectado a Chroma HTTP server",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Funciones de chunking e ingesta"
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 6: chunkMarkdown + embeddings vía chromadb-default-embed + ingestFile\n// chromadb-default-embed = fork oficial Chroma de @xenova/transformers.\n// Modelo: Xenova/all-MiniLM-L6-v2 (idéntico al DefaultEmbeddingFunction Python).\n// Vectores 100% compatibles con los generados por corpus_ingestor_onfalo_regulacion.ipynb\n\nconst MAPAS_PATH = path.join(\n  process.env.HOME || process.env.USERPROFILE,\n  'OASIS', 'aleph-scriptorium', 'onfalo-asesor-sdk', 'PROYECTOS', 'MAPAS_DE_SINGULARIDAD'\n);\n\n// Carga el pipeline una sola vez y lo reutiliza entre celdas\nconst { pipeline, env } = require(path.join(NNB_DIR, 'node_modules', 'chromadb-default-embed'));\nenv.cacheDir = path.join(NNB_DIR, '.model-cache'); // modelo ONNX en disco local\n\nlet _embedder = null;\nasync function getEmbedder() {\n  if (!_embedder) {\n    console.log('  Cargando modelo all-MiniLM-L6-v2 (1ª vez: ~30MB descarga)...');\n    _embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');\n    console.log('  ✓ Modelo listo');\n  }\n  return _embedder;\n}\n\nasync function generateEmbeddings(texts) {\n  const pipe = await getEmbedder();\n  const out = await pipe(texts, { pooling: 'mean', normalize: true });\n  // out es un Tensor — convertir a array de arrays JS\n  return out.tolist();\n}\n\nfunction chunkMarkdown(text, maxChars = 700) {\n  const parts = text.split(/(?=^#{1,3} .+)/m);\n  const raw = [];\n  for (const part of parts) {\n    const headMatch = part.match(/^(#{1,3} [^\\n]+)/);\n    const title = headMatch ? headMatch[1].trim() : '';\n    const body = headMatch ? part.slice(headMatch[0].length).trim() : part.trim();\n    if (body) raw.push({ title, text: body });\n  }\n  const final = [];\n  for (const chunk of raw) {\n    if (chunk.text.length <= maxChars) {\n      final.push(chunk);\n    } else {\n      const paras = chunk.text.split(/\\n\\n+/).filter(p => p.trim());\n      let buf = '';\n      for (const para of paras) {\n        if (buf.length + para.length > maxChars && buf) {\n          final.push({ title: chunk.title, text: buf.trim() });\n          buf = para;\n        } else {\n          buf += (buf ? '\\n\\n' : '') + para;\n        }\n      }\n      if (buf.trim()) final.push({ title: chunk.title, text: buf.trim() });\n    }\n  }\n  return final.filter(c => c.text.length >= 50);\n}\n\nasync function ingestFile(colName, filePath, bloque, tipo, idPrefix) {\n  const col = await client.getOrCreateCollection({\n    name: colName,\n    embeddingFunction: { generate: async () => [] }, // embeddings explícitos\n  });\n  const existing = await col.get({ include: ['metadatas'] });\n  const existingIds = new Set(existing.ids);\n\n  const text = fs.readFileSync(filePath, 'utf-8');\n  const chunks = chunkMarkdown(text);\n\n  const ids = [], docs = [], metas = [];\n  for (let i = 0; i < chunks.length; i++) {\n    const chunk = chunks[i];\n    const docId = `${idPrefix}-${String(i + 1).padStart(2, '0')}`;\n    if (existingIds.has(docId)) continue;\n    const label = chunk.title ? chunk.title.slice(0, 40) : docId;\n    ids.push(docId);\n    docs.push(chunk.text);\n    metas.push({ bloque, tipo, marca: label });\n  }\n\n  if (ids.length > 0) {\n    console.log(`  Generando ${ids.length} embeddings (chromadb-default-embed)...`);\n    const embeddings = await generateEmbeddings(docs);\n    await col.add({ ids, documents: docs, metadatas: metas, embeddings });\n  }\n\n  const total = await col.count();\n  console.log(`  ${colName.padEnd(35)} / ${idPrefix}: +${ids.length} chunks  (total ${total})`);\n  return ids.length;\n}\n\nconsole.log('✓ Funciones cargadas. MAPAS_PATH:', MAPAS_PATH);\nconsole.log('  Archivos disponibles:', fs.readdirSync(MAPAS_PATH).join(', '));"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ Funciones cargadas. MAPAS_PATH: C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\onfalo-asesor-sdk\\PROYECTOS\\MAPAS_DE_SINGULARIDAD",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 1 — `mo_mapas_corpus`\n\n`01_el_mapa_de_tres_dimensiones.md` — Ensayo fundacional.  \nCartografía tridimensional: lengua × geopolítica × arquitectura. Los 3 productores de arquitecturas fundacionales (EE.UU., Israel, parcialmente China)."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 8: mo_mapas_corpus ───────────────────────────────────────────────────\nawait ingestFile(\n  'mo_mapas_corpus',\n  path.join(MAPAS_PATH, '01_el_mapa_de_tres_dimensiones.md'),\n  'doc-01', 'ensayo-fundacional', 'mco-01'\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  mo_mapas_corpus                     / mco-01: +0 chunks  (total 6)",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m0\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 2 — `mo_mapas_geopolitica`\n\n`02_tres_puertas.md` — Las condiciones de posibilidad del mapa.  \nContaminación recursiva (temporal), multimodalidad (perceptual), espejo (reflexiva)."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 10: mo_mapas_geopolitica ────────────────────────────────────────────\nawait ingestFile(\n  'mo_mapas_geopolitica',\n  path.join(MAPAS_PATH, '02_tres_puertas.md'),\n  'doc-02', 'puertas-condiciones', 'mge-02'\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  Generando 6 embeddings (chromadb-default-embed)...",
+                                "  mo_mapas_geopolitica                / mge-02: +6 chunks  (total 6)",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m6\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 3 — `mo_mapas_arquitectura`\n\n`03_abstract_tecnico_arquitecturas.md` — Transformer, Mamba, Jamba como epistemología.  \nCada arquitectura contiene una hipótesis sobre cómo funciona el lenguaje."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 12: mo_mapas_arquitectura ───────────────────────────────────────────\nawait ingestFile(\n  'mo_mapas_arquitectura',\n  path.join(MAPAS_PATH, '03_abstract_tecnico_arquitecturas.md'),\n  'doc-03', 'abstract-tecnico', 'mar-03'\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  Generando 7 embeddings (chromadb-default-embed)...",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m7\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 4 — `mo_mapas_abstract`\n\n`04_la_dimension_conciencia.md` — El modelo que no sabe que no ve.  \nCuarta dimensión del mapa: lo que los modelos **son** sin saber que lo son."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 14: mo_mapas_abstract ────────────────────────────────────────────────\nawait ingestFile(\n  'mo_mapas_abstract',\n  path.join(MAPAS_PATH, '04_la_dimension_conciencia.md'),\n  'doc-04', 'dimension-conciencia', 'mab-04'\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  Generando 11 embeddings (chromadb-default-embed)...",
+                                "  mo_mapas_abstract                   / mab-04: +11 chunks  (total 11)",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m11\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Verificación final\n\nRecuento de chunks por colección `mo_mapas_*` y total acumulado `mod-onfalo`."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 16: Verificación final ───────────────────────────────────────────────\nconst allCols = await client.listCollections();\n// listCollections puede devolver string[] o {name:string}[] según versión chromadb\nconst getName = (c) => typeof c === 'string' ? c : c.name;\nconst mapasCols = allCols.filter(c => getName(c).startsWith('mo_mapas_'));\nconst onfaloTotal_cols = allCols.filter(c => getName(c).startsWith('mo_'));\n\nconsole.log('=== mod-onfalo / MAPAS_DE_SINGULARIDAD ===');\nlet mapasTot = 0;\nfor (const c of mapasCols.sort((a, b) => getName(a).localeCompare(getName(b)))) {\n  const col = await client.getCollection({ name: getName(c) });\n  const n = await col.count();\n  mapasTot += n;\n  console.log(`  ${getName(c).padEnd(35)}  ${String(n).padStart(4)} chunks`);\n}\nconsole.log(`  ${'MAPAS TOTAL'.padEnd(35)}  ${String(mapasTot).padStart(4)} chunks`);\n\nconsole.log('');\nconsole.log('=== mod-onfalo / ACUMULADO ===');\nlet globalTot = 0;\nfor (const c of onfaloTotal_cols.sort((a, b) => getName(a).localeCompare(getName(b)))) {\n  const col = await client.getCollection({ name: getName(c) });\n  const n = await col.count();\n  globalTot += n;\n  console.log(`  ${getName(c).padEnd(35)}  ${String(n).padStart(4)} chunks`);\n}\nconsole.log(`  ${'TOTAL mo_*'.padEnd(35)}  ${String(globalTot).padStart(4)} chunks`);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "=== mod-onfalo / MAPAS_DE_SINGULARIDAD ===",
+                                "  mo_mapas_geopolitica                    6 chunks",
+                                "  MAPAS TOTAL                            30 chunks",
+                                "",
+                                "=== mod-onfalo / ACUMULADO ===",
+                                "  mo_mapas_arquitectura                   7 chunks",
+                                "  mo_mapas_geopolitica                    6 chunks",
+                                "  mo_regulacion_articulos               151 chunks",
+                                "  mo_regulacion_discursos                18 chunks",
+                                "  mo_regulacion_fichas                   69 chunks",
+                                "  mo_regulacion_propuestas              270 chunks",
+                                "  TOTAL mo_*                            677 chunks",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

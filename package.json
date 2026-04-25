@@ -1,0 +1,12 @@
+{
+  "name": "vector-machine-sdk",
+  "version": "0.1.0",
+  "description": "VectorMachineSDK — notebooks de ingesta y visualización (mod/onfalo)",
+  "private": true,
+  "dependencies": {
+    "chromadb": "^1.9.0",
+    "chromadb-default-embed": "^2.14.0",
+    "umap-js": "^1.4.0",
+    "js-yaml": "^4.1.0"
+  }
+}
