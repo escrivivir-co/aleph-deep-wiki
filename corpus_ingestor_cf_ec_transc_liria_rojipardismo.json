@@ -1,0 +1,346 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# Corpus Ingestor — mod/cf_ec_transc · LIRIA_ROJIPARDISMO_S01\r\n\r\n**Stack**: Node.js / TypeScript · `chromadb` + `chromadb-default-embed` (fork oficial Chroma) · Chroma HTTP server\r\n**Embeddings**: `Xenova/all-MiniLM-L6-v2` ONNX — 100% compatible con `DefaultEmbeddingFunction` Python\r\n**Puerto Chroma**: `8000`\r\n\r\nIngesta los documentos de LIRIA_ROJIPARDISMO_S01 en colecciones `mc_liria_rojipardismo_*`.\r\n\r\n| Colección | Documento | Contenido |\r\n|-----------|-----------|----------|\r\n| `mc_liria_rojipardismo_indice` | `LORE_INDEX.md` | Mapa operativo del corpus LORE: bloques, piezas, marcas de hablante y criterio editorial de uso. |\r\n| `mc_liria_rojipardismo_bloques` | `LORE_B.md` | Capa base del archivo: ficha de la conversación preservada, núcleos temáticos y rutas de navegación del lore. |\r\n| `mc_liria_rojipardismo_speaker` | `LORE_S-01.md` | Expansión speaker-attributed de S-01 con bloques temáticos, citas y fronteras editoriales de voz. |\r\n| `mc_liria_rojipardismo_review` | `LORE_S-01_REVIEW.md` | Review pack de líneas dudosas, nombres propios y cortes prioritarios para escucha focalizada. |\r\n| `mc_liria_rojipardismo_second_pass` | `LORE_S-01_SECOND_PASS_P1.md` | Resultados de la segunda pasada focalizada sobre el paquete 1, con cierres útiles para lore y cita de trabajo. |\r\n\r\n---\r\n\r\n> ⚠️ **PRERREQUISITO — Chroma HTTP Server en puerto 8000**\r\n>\r\n> **Opción A — tarea VS Code:** `Ctrl+Shift+P` → *Tasks: Run Task* → **`VMS: Install|Start [Chroma]`**\r\n>\r\n> **Opción B — terminal:** `cd VectorMachineSDK && npm i && bash start.sh`\r\n>\r\n> La **celda 3** verifica la conexión e intenta arrancar el servidor automáticamente si no responde.\r\n\r\n> ℹ️ **Primera ejecución**: `chromadb-default-embed` descarga el modelo ONNX (~30MB) en `.model-cache/` al generar los primeros embeddings. Las ejecuciones siguientes son instantáneas."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 2: Setup — instalar deps si no están disponibles ───────────────────\r\n// chromadb-default-embed = fork oficial de Chroma de @xenova/transformers.\r\n// Misma API, mismo modelo all-MiniLM-L6-v2 (~30MB descarga en runtime, 1ª vez).\r\n// 100% compatible con los embeddings del ingestor Python.\r\nconst { execSync } = require('child_process');\r\nconst path = require('path');\r\nconst fs = require('fs');\r\n\r\nconst NNB_DIR = path.join(\r\n  process.env.HOME || process.env.USERPROFILE,\r\n  'OASIS', 'aleph-scriptorium', 'VectorMachineSDK'\r\n);\r\n\r\nconst chromaInstalled = fs.existsSync(path.join(NNB_DIR, 'node_modules', 'chromadb'));\r\nconst embedInstalled  = fs.existsSync(path.join(NNB_DIR, 'node_modules', 'chromadb-default-embed'));\r\n\r\nif (!chromaInstalled || !embedInstalled) {\r\n  console.log('📦 Instalando deps (chromadb + chromadb-default-embed)...');\r\n  execSync('npm install', { cwd: NNB_DIR, stdio: 'pipe' });\r\n  console.log('✓ Deps instaladas');\r\n} else {\r\n  console.log('✓ chromadb             :', path.join(NNB_DIR, 'node_modules', 'chromadb'));\r\n  console.log('✓ chromadb-default-embed:', path.join(NNB_DIR, 'node_modules', 'chromadb-default-embed'));\r\n}"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ chromadb             : C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\VectorMachineSDK\\node_modules\\chromadb",
+                                "✓ chromadb-default-embed: C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\VectorMachineSDK\\node_modules\\chromadb-default-embed",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 3: Verificar servidor Chroma ────────────────────────────────────────\r\nconst STORAGE_PATH = path.join(\r\n  process.env.HOME || process.env.USERPROFILE,\r\n  'OASIS', 'aleph-scriptorium', 'ARCHIVO', 'PLUGINS', 'VECTOR_MACHINE', 'STORAGE'\r\n);\r\n\r\nasync function isChromaRunning() {\r\n  try {\r\n    const ctrl = new AbortController();\r\n    const t = setTimeout(() => ctrl.abort(), 1500);\r\n    const r = await fetch('http://localhost:8000/api/v2/heartbeat', { signal: ctrl.signal });\r\n    clearTimeout(t);\r\n    return r.ok;\r\n  } catch { return false; }\r\n}\r\n\r\nconst running = await isChromaRunning();\r\n\r\nif (running) {\r\n  console.log('✓ Chroma server activo en localhost:8000 — listo para ingestar');\r\n} else {\r\n  console.log('⚠ Chroma no responde en localhost:8000');\r\n  console.log('  Tip: ejecuta la tarea VS Code → VMS: Start [Chroma]');\r\n  console.log('  O desde terminal: cd VectorMachineSDK && bash start.sh');\r\n  console.log('  Intentando arrancar con uvx...');\r\n\r\n  const { spawn } = require('child_process');\r\n  const srv = spawn(\r\n    'uvx',\r\n    ['--from', 'chromadb', 'chroma', 'run', '--path', STORAGE_PATH, '--host', '0.0.0.0', '--port', '8000'],\r\n    { cwd: NNB_DIR, detached: true, stdio: 'ignore', shell: true }\r\n  );\r\n  srv.unref();\r\n\r\n  let ready = false;\r\n  for (let i = 0; i < 30; i++) {\r\n    await new Promise(r => setTimeout(r, 500));\r\n    if (await isChromaRunning()) { ready = true; break; }\r\n  }\r\n  if (ready) {\r\n    console.log('✓ Chroma server listo  (pid', srv.pid, ')');\r\n  } else {\r\n    console.error('✗ Chroma server no respondió — arranca VMS: Start [Chroma] manualmente');\r\n  }\r\n}\r\n\r\nconsole.log('Storage:', STORAGE_PATH);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "⚠ Chroma no responde en localhost:8000",
+                                "  Tip: ejecuta la tarea VS Code → VMS: Start [Chroma]",
+                                "  O desde terminal: cd VectorMachineSDK && bash start.sh",
+                                "  Intentando arrancar con uvx...",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stderr",
+                            "value": [
+                                "✗ Chroma server no respondió — arranca VMS: Start [Chroma] manualmente",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "Storage: C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\ARCHIVO\\PLUGINS\\VECTOR_MACHINE\\STORAGE",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 4: Conectar ChromaClient y listar colecciones existentes ───────────\r\nconst { ChromaClient } = require(path.join(NNB_DIR, 'node_modules', 'chromadb'));\r\n\r\nconst client = new ChromaClient({\r\n  host: 'localhost',\r\n  port: 8000,\r\n  database: 'default_database',\r\n});\r\n\r\nawait client.heartbeat();\r\nconst existing = await client.listCollections();\r\nconst getName = (c) => typeof c === 'string' ? c : c.name;\r\nconsole.log('✓ Conectado a Chroma HTTP server');\r\nconsole.log('Colecciones existentes:', existing.map(getName));"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ Conectado a Chroma HTTP server",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Funciones de chunking e ingesta\r\n\r\nCarga la función de embeddings JS, define `chunkMarkdown` e implementa `ingestFile()` con escritura idempotente en Chroma."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 6: chunkMarkdown + embeddings vía chromadb-default-embed + ingestFile\r\n// chromadb-default-embed = fork oficial Chroma de @xenova/transformers.\r\n// Modelo: Xenova/all-MiniLM-L6-v2 (idéntico al DefaultEmbeddingFunction Python).\r\n\r\nconst COLLECTION_CONFIGURATION = {\r\n  hnsw: {\r\n    space: 'cosine',\r\n  },\r\n};\r\n\r\nconst SOURCE_ROOT_PATH = path.join(\r\n  process.env.HOME || process.env.USERPROFILE,\r\n  'OASIS', 'aleph-scriptorium', 'DocumentMachineSDK', 'DRAFT2'\r\n);\r\n\r\n// Carga el pipeline una sola vez y lo reutiliza entre celdas\r\nconst { pipeline, env } = require(path.join(NNB_DIR, 'node_modules', 'chromadb-default-embed'));\r\nenv.cacheDir = path.join(NNB_DIR, '.model-cache'); // modelo ONNX en disco local\r\n\r\nlet _embedder = null;\r\nasync function getEmbedder() {\r\n  if (!_embedder) {\r\n    console.log('  Cargando modelo all-MiniLM-L6-v2 (1ª vez: ~30MB descarga)...');\r\n    _embedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');\r\n    console.log('  ✓ Modelo listo');\r\n  }\r\n  return _embedder;\r\n}\r\n\r\nasync function generateEmbeddings(texts) {\r\n  const pipe = await getEmbedder();\r\n  const out = await pipe(texts, { pooling: 'mean', normalize: true });\r\n  return out.tolist();\r\n}\r\n\r\nfunction chunkMarkdown(text, maxChars = 700) {\r\n  const parts = text.split(/(?=^#{1,3} .+)/m);\r\n  const raw = [];\r\n  for (const part of parts) {\r\n    const headMatch = part.match(/^(#{1,3} [^\\n]+)/);\r\n    const title = headMatch ? headMatch[1].trim() : '';\r\n    const body = headMatch ? part.slice(headMatch[0].length).trim() : part.trim();\r\n    if (body) raw.push({ title, text: body });\r\n  }\r\n  const final = [];\r\n  for (const chunk of raw) {\r\n    if (chunk.text.length <= maxChars) {\r\n      final.push(chunk);\r\n    } else {\r\n      const paras = chunk.text.split(/\\n\\n+/).filter(p => p.trim());\r\n      let buf = '';\r\n      for (const para of paras) {\r\n        if (buf.length + para.length > maxChars && buf) {\r\n          final.push({ title: chunk.title, text: buf.trim() });\r\n          buf = para;\r\n        } else {\r\n          buf += (buf ? '\\n\\n' : '') + para;\r\n        }\r\n      }\r\n      if (buf.trim()) final.push({ title: chunk.title, text: buf.trim() });\r\n    }\r\n  }\r\n  return final.filter(c => c.text.length >= 50);\r\n}\r\n\r\nasync function ingestFile(colName, filePath, bloque, tipo, idPrefix) {\r\n  const col = await client.getOrCreateCollection({\r\n    name: colName,\r\n    embeddingFunction: { generate: async () => [] }, // embeddings explícitos\r\n    configuration: COLLECTION_CONFIGURATION,\r\n  });\r\n  const existing = await col.get({ include: ['metadatas'] });\r\n  const existingIds = new Set(existing.ids);\r\n\r\n  const text = fs.readFileSync(filePath, 'utf-8');\r\n  const chunks = chunkMarkdown(text);\r\n\r\n  const ids = [], docs = [], metas = [];\r\n  for (let i = 0; i < chunks.length; i++) {\r\n    const chunk = chunks[i];\r\n    const docId = `${idPrefix}-${String(i + 1).padStart(2, '0')}`;\r\n    if (existingIds.has(docId)) continue;\r\n    const label = chunk.title ? chunk.title.slice(0, 40) : docId;\r\n    ids.push(docId);\r\n    docs.push(chunk.text);\r\n    metas.push({ bloque, tipo, marca: label });\r\n  }\r\n\r\n  if (ids.length > 0) {\r\n    console.log(`  Generando ${ids.length} embeddings (chromadb-default-embed)...`);\r\n    const embeddings = await generateEmbeddings(docs);\r\n    await col.add({ ids, documents: docs, metadatas: metas, embeddings });\r\n  }\r\n\r\n  const total = await col.count();\r\n  console.log(`  ${colName.padEnd(35)} / ${idPrefix}: +${ids.length} chunks  (total ${total})`);\r\n  return ids.length;\r\n}\r\n\r\nconsole.log('✓ Funciones cargadas. SOURCE_ROOT_PATH:', SOURCE_ROOT_PATH);\r\nconsole.log('  Configuración HNSW nueva:', JSON.stringify(COLLECTION_CONFIGURATION));\r\nconsole.log('  Archivos disponibles:', fs.readdirSync(SOURCE_ROOT_PATH).join(', '));"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ Funciones cargadas. SOURCE_ROOT_PATH: C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\DocumentMachineSDK\\DRAFT2",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 1 — `mc_liria_rojipardismo_indice`\r\n\r\n`LORE_INDEX.md` — fuente del corpus.  \r\nMapa operativo del corpus LORE: bloques, piezas, marcas de hablante y criterio editorial de uso."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 8: mc_liria_rojipardismo_indice ─────────────────────────────────────\r\nawait ingestFile(\r\n  'mc_liria_rojipardismo_indice',\r\n  path.join(SOURCE_ROOT_PATH, 'LORE_INDEX.md'),\r\n  'doc-01', 'indice-lore', 'cfi-01'\r\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  Generando 4 embeddings (chromadb-default-embed)...",
+                                "  Cargando modelo all-MiniLM-L6-v2 (1ª vez: ~30MB descarga)...",
+                                "  ✓ Modelo listo",
+                                "  mc_liria_rojipardismo_indice        / cfi-01: +4 chunks  (total 4)",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m4\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 2 — `mc_liria_rojipardismo_bloques`\r\n\r\n`LORE_B.md` — fuente del corpus.  \r\nCapa base del archivo: ficha de la conversación preservada, núcleos temáticos y rutas de navegación del lore."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 10: mc_liria_rojipardismo_bloques ───────────────────────────────────\r\nawait ingestFile(\r\n  'mc_liria_rojipardismo_bloques',\r\n  path.join(SOURCE_ROOT_PATH, 'LORE_B.md'),\r\n  'doc-02', 'bloque-conversaciones', 'cfb-02'\r\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  Generando 2 embeddings (chromadb-default-embed)...",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m2\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 3 — `mc_liria_rojipardismo_speaker`\r\n\r\n`LORE_S-01.md` — fuente del corpus.  \r\nExpansión speaker-attributed de S-01 con bloques temáticos, citas y fronteras editoriales de voz."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 12: mc_liria_rojipardismo_speaker ───────────────────────────────────\r\nawait ingestFile(\r\n  'mc_liria_rojipardismo_speaker',\r\n  path.join(SOURCE_ROOT_PATH, 'LORE_S-01.md'),\r\n  'doc-03', 'expansion-speaker', 'cfs-03'\r\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  Generando 15 embeddings (chromadb-default-embed)...",
+                                "  mc_liria_rojipardismo_speaker       / cfs-03: +15 chunks  (total 15)",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m15\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 4 — `mc_liria_rojipardismo_review`\r\n\r\n`LORE_S-01_REVIEW.md` — fuente del corpus.  \r\nReview pack de líneas dudosas, nombres propios y cortes prioritarios para escucha focalizada."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 14: mc_liria_rojipardismo_review ────────────────────────────────────\r\nawait ingestFile(\r\n  'mc_liria_rojipardismo_review',\r\n  path.join(SOURCE_ROOT_PATH, 'LORE_S-01_REVIEW.md'),\r\n  'doc-04', 'review-pack', 'cfr-04'\r\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  Generando 24 embeddings (chromadb-default-embed)...",
+                                "  mc_liria_rojipardismo_review        / cfr-04: +24 chunks  (total 24)",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m24\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Colección 5 — `mc_liria_rojipardismo_second_pass`\r\n\r\n`LORE_S-01_SECOND_PASS_P1.md` — fuente del corpus.  \r\nResultados de la segunda pasada focalizada sobre el paquete 1, con cierres útiles para lore y cita de trabajo."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda 16: mc_liria_rojipardismo_second_pass ───────────────────────────────\r\nawait ingestFile(\r\n  'mc_liria_rojipardismo_second_pass',\r\n  path.join(SOURCE_ROOT_PATH, 'LORE_S-01_SECOND_PASS_P1.md'),\r\n  'doc-05', 'segunda-pasada', 'cfp-05'\r\n);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "  Generando 23 embeddings (chromadb-default-embed)...",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "text/plain",
+                            "value": [
+                                "\u001b[33m23\u001b[39m"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Verificación final\r\n\r\nRecuento de chunks por colección `mc_liria_rojipardismo_*` y total acumulado `mod-cf_ec_transc`."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "// ── Celda final: Verificación ─────────────────────────────────────────────────\r\nconst allCols = await client.listCollections();\r\n// listCollections puede devolver string[] o {name:string}[] según versión chromadb\r\nconst getName = (c) => typeof c === 'string' ? c : c.name;\r\nconst corpusCols = allCols.filter(c => getName(c).startsWith('mc_liria_rojipardismo_'));\r\nconst modTotalCols = allCols.filter(c => getName(c).startsWith('mc_'));\r\n\r\nconsole.log('=== mod-cf_ec_transc / LIRIA_ROJIPARDISMO_S01 ===');\r\nlet corpusTot = 0;\r\nfor (const c of corpusCols.sort((a, b) => getName(a).localeCompare(getName(b)))) {\r\n  const col = await client.getCollection({ name: getName(c) });\r\n  const n = await col.count();\r\n  corpusTot += n;\r\n  console.log(`  ${getName(c).padEnd(35)}  ${String(n).padStart(4)} chunks`);\r\n}\r\nconsole.log(`  ${'CORPUS TOTAL'.padEnd(35)}  ${String(corpusTot).padStart(4)} chunks`);\r\n\r\nconsole.log('');\r\nconsole.log('=== mod-cf_ec_transc / ACUMULADO ===');\r\nlet globalTot = 0;\r\nfor (const c of modTotalCols.sort((a, b) => getName(a).localeCompare(getName(b)))) {\r\n  const col = await client.getCollection({ name: getName(c) });\r\n  const n = await col.count();\r\n  globalTot += n;\r\n  console.log(`  ${getName(c).padEnd(35)}  ${String(n).padStart(4)} chunks`);\r\n}\r\nconsole.log(`  ${'TOTAL mc_*'.padEnd(35)}  ${String(globalTot).padStart(4)} chunks`);"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "=== mod-cf_ec_transc / LIRIA_ROJIPARDISMO_S01 ===",
+                                "  mc_liria_rojipardismo_indice            4 chunks",
+                                "  mc_liria_rojipardismo_review           24 chunks",
+                                "  mc_liria_rojipardismo_indice            4 chunks",
+                                "  mc_liria_rojipardismo_speaker          15 chunks",
+                                "  TOTAL mc_*                             68 chunks",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

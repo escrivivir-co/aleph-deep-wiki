@@ -14,7 +14,7 @@ const divergencias = [];
 
 for (let i = 0; i < n; i++) {
   const sims = rows
-    .map((r, j) => ({ j, sim: j === i ? -Infinity : cosineSim(embeddings[i], embeddings[j]) }))
+    .map((_, j) => ({ j, sim: j === i ? -Infinity : cosineSim(embeddings[i], embeddings[j]) }))
     .sort((a, b) => b.sim - a.sim)
     .slice(0, K_NEIGHBORS);
 
