@@ -41,6 +41,15 @@ El catálogo en `docs/{banner}/cuadernos/` queda actualizado automáticamente.
 
 ## Para mantenedores de la skill
 
+### Defaults geométricos del patrón canónico
+
+- Los embeddings se generan normalizados (`normalize: true`) con `Xenova/all-MiniLM-L6-v2`.
+- Las colecciones nuevas se crean con `configuration.hnsw.space = 'cosine'`.
+- El visualizer usa `distanceFn: cosine` en `umap-js`.
+- `nNeighbors` se elige automáticamente con una heurística suave (~√N, acotada) para no fijar un lente rígido.
+
+> Si reusas colecciones antiguas creadas antes de este parche, conservarán su espacio HNSW previo. Para adoptar `cosine` de forma estricta, hay que recrearlas.
+
 ### Cuándo modificar las plantillas en `cells/`
 
 Solo si:
@@ -59,6 +68,10 @@ Regenerar el ejemplo y verificar que ejecuta limpio:
 /scaffold-corpus .github/skills/corpus-vectorial/examples/manifest.mapas.yml --overwrite
 ```
 Luego ejecutar todas las celdas de los dos notebooks resultantes.
+
+Para validar la geometría nueva:
+- comprueba en el ingestor que la configuración HNSW reportada es `cosine`
+- comprueba en el visualizer que UMAP informa `metric: cosine` y el `nNeighbors` elegido
 
 ---
 

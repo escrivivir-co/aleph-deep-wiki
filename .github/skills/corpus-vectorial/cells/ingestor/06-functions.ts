@@ -2,6 +2,12 @@
 // chromadb-default-embed = fork oficial Chroma de @xenova/transformers.
 // Modelo: Xenova/all-MiniLM-L6-v2 (idéntico al DefaultEmbeddingFunction Python).
 
+const COLLECTION_CONFIGURATION = {
+  hnsw: {
+    space: 'cosine',
+  },
+};
+
 const SOURCE_ROOT_PATH = path.join(
   process.env.HOME || process.env.USERPROFILE,
   'OASIS', 'aleph-scriptorium', {{SOURCE_ROOT_PATH_SEGMENTS}}
@@ -61,6 +67,7 @@ async function ingestFile(colName, filePath, bloque, tipo, idPrefix) {
   const col = await client.getOrCreateCollection({
     name: colName,
     embeddingFunction: { generate: async () => [] }, // embeddings explícitos
+    configuration: COLLECTION_CONFIGURATION,
   });
   const existing = await col.get({ include: ['metadatas'] });
   const existingIds = new Set(existing.ids);
@@ -91,4 +98,5 @@ async function ingestFile(colName, filePath, bloque, tipo, idPrefix) {
 }
 
 console.log('✓ Funciones cargadas. SOURCE_ROOT_PATH:', SOURCE_ROOT_PATH);
+console.log('  Configuración HNSW nueva:', JSON.stringify(COLLECTION_CONFIGURATION));
 console.log('  Archivos disponibles:', fs.readdirSync(SOURCE_ROOT_PATH).join(', '));

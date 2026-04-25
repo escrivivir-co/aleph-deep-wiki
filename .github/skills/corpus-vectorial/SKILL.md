@@ -41,10 +41,12 @@ manifest.yml ──┐
                ├──▶ ingestor.{nick}.nnb        (escribe a Chroma localhost:8000)
                │       └─ chunking MD por H2/H3
                │       └─ embeddings via chromadb-default-embed (Xenova/all-MiniLM-L6-v2)
+                       │       └─ colecciones nuevas con HNSW `space: cosine`
                │       └─ idempotente (skip IDs existentes)
                │
                └──▶ visualizer.{banner}.{nick}.nnb  (lee Chroma + exporta HTML)
-                       └─ UMAP 2D+3D via umap-js
+                         └─ UMAP 2D+3D via umap-js (`distanceFn: cosine`)
+                         └─ `nNeighbors` adaptativo (~√N, acotado)
                        └─ Plotly CDN (HTML embebido)
                        └─ KMeans + Silhouette en JS puro
                        └─ Divergencia coseno corpus↔geometría
@@ -62,6 +64,13 @@ manifest.yml ──┐
 | Visualización | Plotly CDN (sin npm install) |
 | YAML | `js-yaml` |
 | KMeans, silhouette, coseno | implementación inline en JS |
+
+**Defaults geométricos del patrón canónico:**
+
+- Embeddings normalizados (`normalize: true`) con `Xenova/all-MiniLM-L6-v2`
+- Colecciones nuevas creadas con `configuration.hnsw.space = 'cosine'`
+- UMAP con `distanceFn: cosine` para dejar explícita la semántica angular
+- `nNeighbors` autoajustado por tamaño del corpus para evitar el default rígido `4`
 
 ---
 
@@ -256,7 +265,9 @@ Definido en `.github/prompts/scaffold-corpus.prompt.md`.
 3. **Aislamiento por colección**: Una fuente = una colección Chroma.
 4. **Sin Python en runtime**: Toda la lógica numérica vive en JS para que los
    notebooks puedan ejecutarse sin venv.
-5. **El manifest es la fuente de verdad**: cualquier cambio en el corpus pasa por
+5. **Geometría explícita para texto**: el patrón fija `cosine` en HNSW y en UMAP
+  para que la semántica angular no quede implícita ni dependa de defaults.
+6. **El manifest es la fuente de verdad**: cualquier cambio en el corpus pasa por
    editar el manifest y regenerar.
 
 ---
