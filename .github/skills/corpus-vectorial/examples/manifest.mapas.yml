@@ -1,0 +1,53 @@
+# === Identidad del corpus ===
+nick: mapas
+proyecto: MAPAS_DE_SINGULARIDAD
+mod: onfalo
+banner: azul
+
+# === Fuentes ===
+source_root: onfalo-asesor-sdk/PROYECTOS/MAPAS_DE_SINGULARIDAD
+sources:
+  - file: 01_el_mapa_de_tres_dimensiones.md
+    short_id: mco-01
+    collection_suffix: corpus
+    label: "Corpus [MS]"
+    bloque: doc-01
+    tipo: ensayo-fundacional
+    summary: "Ensayo fundacional: lengua × geopolítica × arquitectura."
+  - file: 02_tres_puertas.md
+    short_id: mge-02
+    collection_suffix: geopolitica
+    label: "Geopolítica [MS]"
+    bloque: doc-02
+    tipo: puertas-condiciones
+    summary: "Las condiciones de posibilidad del mapa: contaminación, multimodalidad y espejo."
+  - file: 03_abstract_tecnico_arquitecturas.md
+    short_id: mar-03
+    collection_suffix: arquitectura
+    label: "Arquitectura [MS]"
+    bloque: doc-03
+    tipo: abstract-tecnico
+    summary: "Transformer, Mamba y Jamba como epistemología."
+  - file: 04_la_dimension_conciencia.md
+    short_id: mab-04
+    collection_suffix: abstract
+    label: "Abstract [MS]"
+    bloque: doc-04
+    tipo: dimension-conciencia
+    summary: "Cuarta dimensión: el modelo que no sabe que no ve."
+
+# === Paleta (4 tonos del banner azul índigo) ===
+palette:
+  - "#c3e0f3"
+  - "#8cbedd"
+  - "#5596c4"
+  - "#2b6fa3"
+
+# === Export GH Pages ===
+export:
+  base_dir: DocumentMachineSDK/docs/azul/cuadernos
+  registry_file: DocumentMachineSDK/docs/_data/cuadernos_onfalo.yml
+  ids_prefix: mapas
+
+# === Query de ejemplo ===
+example_query: "¿Cuál es la cuarta dimensión del mapa de singularidad?"
