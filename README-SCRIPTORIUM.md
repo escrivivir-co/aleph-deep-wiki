@@ -4,6 +4,16 @@
 
 `VectorMachineSDK` integra una stack self-hosted de indexación y consulta semántica de repositorios.
 
+### Submódulo compañero: `VectorMachineUI`
+
+La UI administrativa de Chroma que antes vivía anidada dentro de `VectorMachineSDK/chromadb-admin-main` se externalizó a `VectorMachineUI/` como submódulo raíz del Scriptorium.
+
+- **Ruta actual**: `VectorMachineUI/`
+- **Rol**: admin UI Next.js para inspeccionar colecciones Chroma y validar query semántica compatible con los notebooks
+- **Dependencia compartida**: mantiene como referencia operativa `VectorMachineSDK/.model-cache`
+
+El plugin `vector-machine` pasa a considerar `VectorMachineSDK` como núcleo vectorial y `VectorMachineUI` como superficie UI auxiliar del mismo stack.
+
 ## Handoff operativo — corpus vectorial
 
 Si otro agente retoma este submódulo, ya tiene lo necesario para scaffoldar y ejecutar un corpus vectorial siguiendo el patrón canónico de `VectorMachineSDK`.
