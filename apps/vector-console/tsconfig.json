@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "types": ["bun-types"],
+    "paths": {
+      "@alephscript/mcp-core-sdk/vector-db": ["../../../MCPGallery/mcp-core-sdk/dist/vector-db/index.js"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

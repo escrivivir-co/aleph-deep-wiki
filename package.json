@@ -4,8 +4,8 @@
   "description": "VectorMachineSDK — notebooks de ingesta y visualización (mod/onfalo)",
   "private": true,
   "dependencies": {
-    "chromadb": "^1.9.0",
-    "chromadb-default-embed": "^2.14.0",
+    "chromadb": "^3.4.3",
+    "@chroma-core/default-embed": "^0.1.9",
     "umap-js": "^1.4.0",
     "js-yaml": "^4.1.0"
   }
