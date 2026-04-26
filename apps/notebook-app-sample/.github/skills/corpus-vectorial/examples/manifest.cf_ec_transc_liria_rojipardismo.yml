@@ -1,0 +1,63 @@
+# === Identidad del corpus ===
+# Nota de normalización: el pedido del usuario habla de database "CF-EC-transc".
+# En el manifest se normaliza a `cf_ec_transc` para mantener nombres de archivo y catálogo estables.
+nick: liria_rojipardismo
+proyecto: LIRIA_ROJIPARDISMO_S01
+mod: cf_ec_transc
+banner: azul
+
+# === Fuentes ===
+source_root: DocumentMachineSDK/DRAFT2
+sources:
+  - file: LORE_INDEX.md
+    short_id: cfi-01
+    collection_suffix: indice
+    label: "Índice [CF-EC]"
+    bloque: doc-01
+    tipo: indice-lore
+    summary: "Mapa operativo del corpus LORE: bloques, piezas, marcas de hablante y criterio editorial de uso."
+  - file: LORE_B.md
+    short_id: cfb-02
+    collection_suffix: bloques
+    label: "Bloques [CF-EC]"
+    bloque: doc-02
+    tipo: bloque-conversaciones
+    summary: "Capa base del archivo: ficha de la conversación preservada, núcleos temáticos y rutas de navegación del lore."
+  - file: LORE_S-01.md
+    short_id: cfs-03
+    collection_suffix: speaker
+    label: "Speaker [CF-EC]"
+    bloque: doc-03
+    tipo: expansion-speaker
+    summary: "Expansión speaker-attributed de S-01 con bloques temáticos, citas y fronteras editoriales de voz."
+  - file: LORE_S-01_REVIEW.md
+    short_id: cfr-04
+    collection_suffix: review
+    label: "Review [CF-EC]"
+    bloque: doc-04
+    tipo: review-pack
+    summary: "Review pack de líneas dudosas, nombres propios y cortes prioritarios para escucha focalizada."
+  - file: LORE_S-01_SECOND_PASS_P1.md
+    short_id: cfp-05
+    collection_suffix: second_pass
+    label: "2ª pasada [CF-EC]"
+    bloque: doc-05
+    tipo: segunda-pasada
+    summary: "Resultados de la segunda pasada focalizada sobre el paquete 1, con cierres útiles para lore y cita de trabajo."
+
+# === Paleta (5 tonos azul acero para transcript/lore) ===
+palette:
+  - "#d9e6f2"
+  - "#b9d2ea"
+  - "#8fb9dd"
+  - "#5c96c7"
+  - "#2f5f98"
+
+# === Export GH Pages ===
+export:
+  base_dir: DocumentMachineSDK/docs/azul/cuadernos
+  registry_file: DocumentMachineSDK/docs/_data/cuadernos_cf_ec_transc.yml
+  ids_prefix: liria_rojipardismo
+
+# === Query de ejemplo ===
+example_query: "¿Cómo se articula el vínculo entre filosofía, democracia y rojipardismo en la conversación entre Fernández Liria y Ernesto Castro?"

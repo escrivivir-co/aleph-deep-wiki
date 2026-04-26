@@ -1,0 +1,199 @@
+{
+    "cells": [
+        {
+            "language": "markdown",
+            "source": [
+                "# Semantic Query Runner — `ml_*` vía `mcp-core-sdk`\n\nEste cuaderno ejecuta de forma mecánica el pack mínimo de semantic queries definido en `tmp/plantilla-semantic-query-ml.md` y escribe un markdown por sección en `tmp/`.\n\n## Entradas\n- `tmp/plantilla-semantic-query-ml.md`\n- colecciones Chroma `ml_*`\n\n## Salidas\n- `tmp/seccion-1-ml_hilo_narrativo.md`\n- `tmp/seccion-2-ml_piezas_media.md`\n- `tmp/seccion-3-ml_recursos.md`\n- `tmp/seccion-4-ml_eventos.md`\n- `tmp/seccion-5-ml_personajes.md`\n\n## Flujo\n1. Bootstrap vendor-first con `BasicVectorMachine`\n2. Parseo de la plantilla markdown\n3. Query semántica por sección\n4. Render markdown + escritura idempotente\n\n> Prerrequisitos: Chroma accesible y `MCPGallery/mcp-core-sdk` compilado."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const path = require('path');\nconst fs = require('fs');\nconst { execSync } = require('child_process');\n\nfunction resolveHomeDirectory() {\n  const homeDirectory = process.env.HOME || process.env.USERPROFILE;\n  if (!homeDirectory) {\n    throw new Error('HOME / USERPROFILE is required to resolve notebook paths.');\n  }\n  return homeDirectory;\n}\n\nconst HOME_DIR = resolveHomeDirectory();\nconst SCRIPTORIUM_ROOT = path.join(HOME_DIR, 'OASIS', 'aleph-scriptorium');\nconst WORKSPACE_ROOT = path.join('c:', 'Users', 'aleph', 'Desktop', 'TEST');\nconst TMP_DIR = path.join(WORKSPACE_ROOT, 'tmp');\nconst TEMPLATE_FILE = path.join(TMP_DIR, 'plantilla-semantic-query-ml.md');\nconst NNB_DIR = path.join(SCRIPTORIUM_ROOT, 'VectorMachineSDK');\nconst VECTOR_DB_DIST = path.join(\n  SCRIPTORIUM_ROOT,\n  'MCPGallery',\n  'mcp-core-sdk',\n  'dist',\n  'vector-db'\n);\n\nconst neededPackages = ['chromadb-default-embed'];\nconst missingPackages = neededPackages.filter(function(pkg) {\n  return !fs.existsSync(path.join(NNB_DIR, 'node_modules', pkg));\n});\nif (missingPackages.length) {\n  console.log(`📦 Instalando dependencias notebook: ${missingPackages.join(', ')}`);\n  execSync(`npm install ${missingPackages.join(' ')}`, { cwd: NNB_DIR, stdio: 'pipe' });\n  console.log('✓ Dependencias instaladas');\n}\n\nconst coreExports = require(VECTOR_DB_DIST);\nconst BasicVectorMachine = coreExports.BasicVectorMachine;\nif (!BasicVectorMachine) {\n  throw new Error(\n    `BasicVectorMachine no encontrado en ${VECTOR_DB_DIST}. Ejecuta npm run build en MCPGallery/mcp-core-sdk.`\n  );\n}\n\nconst notebookGlobal = globalThis;\nconst vm = notebookGlobal.__semanticVm || new BasicVectorMachine();\nnotebookGlobal.__semanticVm = vm;\n\nif (typeof vm.getChromaClient !== 'function') {\n  throw new Error('BasicVectorMachine no expone getChromaClient(); revisa la versión del mcp-core-sdk.');\n}\n\nconst client = vm.getChromaClient();\nconst heartbeat = await vm.connectChroma();\nconst mlCollections = await vm.listCollectionNames('ml_');\n\nnotebookGlobal.__sq = {\n  path,\n  fs,\n  execSync,\n  HOME_DIR,\n  SCRIPTORIUM_ROOT,\n  WORKSPACE_ROOT,\n  TMP_DIR,\n  TEMPLATE_FILE,\n  NNB_DIR,\n  VECTOR_DB_DIST,\n  vm,\n  client,\n  mlCollections,\n};\n\nconsole.log(`🧭 Chroma heartbeat: ${heartbeat}`);\nconsole.log(`Template file: ${TEMPLATE_FILE}`);\nconsole.log(`TMP dir: ${TMP_DIR}`);\nconsole.table(mlCollections.map(function(collectionName) {\n  return { collection: collectionName };\n}));\n\nif (!fs.existsSync(TEMPLATE_FILE)) {\n  throw new Error(`No existe el archivo de plantilla: ${TEMPLATE_FILE}`);\n}\n\nif (mlCollections.length !== 5) {\n  console.warn(`⚠️ Esperaba 5 colecciones ml_*, encontré ${mlCollections.length}.`);\n}\n\nvoid 0;"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "🧭 Chroma heartbeat: 1777230468295978000",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Parseo de la plantilla markdown\n\nEsta fase lee `tmp/plantilla-semantic-query-ml.md`, detecta las 5 secciones `ml_*` y normaliza sus campos operativos para el motor de query."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const sq = globalThis.__sq;\nconst templateMarkdown = sq.fs.readFileSync(sq.TEMPLATE_FILE, 'utf8');\nconst sectionHeaderRegex = /^##\\s+(\\d+)\\)\\s+`([^`]+)`\\s+—\\s+(.+)$/gm;\nconst sectionMatches = [...templateMarkdown.matchAll(sectionHeaderRegex)];\n\nif (sectionMatches.length !== 5) {\n  throw new Error(`El parser esperaba 5 secciones y encontró ${sectionMatches.length}.`);\n}\n\nfunction parseSectionBlock(markdownText, matches, index) {\n  const start = matches[index].index;\n  const end = index + 1 < matches.length ? matches[index + 1].index : markdownText.length;\n  return markdownText.slice(start, end).trim();\n}\n\nfunction parseNResults(block) {\n  const rangeMatch = block.match(/`n_results`:\\s*(\\d+)(?:[–-](\\d+))?/);\n  if (!rangeMatch) {\n    return { raw: '5', min: 5, max: 5 };\n  }\n  const min = Number(rangeMatch[1]);\n  const max = rangeMatch[2] ? Number(rangeMatch[2]) : min;\n  return {\n    raw: rangeMatch[2] ? `${min}–${max}` : `${min}`,\n    min,\n    max,\n  };\n}\n\nconst sections = sectionMatches.map(function(match, index) {\n  const block = parseSectionBlock(templateMarkdown, sectionMatches, index);\n  const sectionNumber = Number(match[1]);\n  const collectionName = match[2].trim();\n  const sectionLabel = match[3].trim();\n  const agentMatch = block.match(/\\*\\*Agente sugerido:\\*\\*\\s*`([^`]+)`/);\n  const hypothesisMatch = block.match(/###\\s+Hipótesis de exploración\\s*\\n-\\s+(.+)/);\n  const queryTexts = [...block.matchAll(/^\\d+\\.\\s+\"([^\"]+)\"/gm)].map(function(queryMatch) {\n    return queryMatch[1].trim();\n  });\n  const nResults = parseNResults(block);\n\n  return {\n    sectionNumber,\n    collectionName,\n    sectionLabel,\n    agent: agentMatch ? agentMatch[1].trim() : 'Explore',\n    hypothesis: hypothesisMatch ? hypothesisMatch[1].trim() : '',\n    queryTexts,\n    nResults,\n    outputPath: sq.path.join(sq.TMP_DIR, `seccion-${sectionNumber}-${collectionName}.md`),\n    block,\n  };\n});\n\nsq.templateMarkdown = templateMarkdown;\nsq.sections = sections;\n\nconsole.table(sections.map(function(section) {\n  return {\n    section: section.sectionNumber,\n    collection: section.collectionName,\n    agent: section.agent,\n    queryCount: section.queryTexts.length,\n    nResults: section.nResults.raw,\n    output: sq.path.basename(section.outputPath),\n  };\n}));\n\nconst invalidSections = sections.filter(function(section) {\n  return !sq.mlCollections.includes(section.collectionName);\n});\nif (invalidSections.length) {\n  throw new Error(`Colecciones ausentes en Chroma: ${invalidSections.map(function(section) { return section.collectionName; }).join(', ')}`);\n}\n\nconst queryCount = sections.reduce(function(acc, section) {\n  return acc + section.queryTexts.length;\n}, 0);\nconsole.log(`✓ Parser listo: ${sections.length} secciones, ${queryCount} query_texts.`);\n\nvoid 0;"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "┌─────────┬─────────┬─────────────────────┬───────────┬────────────┬──────────┬──────────────────────────────────┐",
+                                "│ (index) │ section │ collection          │ agent     │ queryCount │ nResults │ output                           │",
+                                "├─────────┼─────────┼─────────────────────┼───────────┼────────────┼──────────┼──────────────────────────────────┤",
+                                "│ 0       │ 1       │ 'ml_hilo_narrativo' │ 'Explore' │ 5          │ '5–8'    │ 'seccion-1-ml_hilo_narrativo.md' │",
+                                "│ 1       │ 2       │ 'ml_piezas_media'   │ 'Lector'  │ 5          │ '6–10'   │ 'seccion-2-ml_piezas_media.md'   │",
+                                "│ 2       │ 3       │ 'ml_recursos'       │ 'Explore' │ 5          │ '5–7'    │ 'seccion-3-ml_recursos.md'       │",
+                                "│ 3       │ 4       │ 'ml_eventos'        │ 'Lector'  │ 5          │ '6–9'    │ 'seccion-4-ml_eventos.md'        │",
+                                "│ 4       │ 5       │ 'ml_personajes'     │ 'Albacea' │ 5          │ '5–8'    │ 'seccion-5-ml_personajes.md'     │",
+                                "└─────────┴─────────┴─────────────────────┴───────────┴────────────┴──────────┴──────────────────────────────────┘",
+                                "✓ Parser listo: 5 secciones, 25 query_texts.",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Motor de query y render markdown\n\nAquí cacheamos el embedder JS, consultamos Chroma colección por colección y convertimos cada sección a markdown con salida estable."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const sqRuntime = globalThis.__sq;\nconst { pipeline, env } = require(sqRuntime.path.join(sqRuntime.NNB_DIR, 'node_modules', 'chromadb-default-embed'));\nenv.cacheDir = sqRuntime.path.join(sqRuntime.NNB_DIR, '.model-cache');\n\nfunction stableJson(value) {\n  const source = value || {};\n  const normalized = Object.keys(source)\n    .sort()\n    .reduce(function(acc, key) {\n      acc[key] = source[key];\n      return acc;\n    }, {});\n  return JSON.stringify(normalized);\n}\n\nfunction cleanText(text) {\n  return String(text || '').replace(/\\s+/g, ' ').trim();\n}\n\nfunction buildSnippet(text, maxLength) {\n  const normalized = cleanText(text);\n  const limit = typeof maxLength === 'number' ? maxLength : 120;\n  if (normalized.length <= limit) {\n    return normalized;\n  }\n  return normalized.slice(0, Math.max(0, limit - 1)).trimEnd() + '…';\n}\n\nasync function getEmbedder() {\n  const runtimeGlobal = globalThis;\n  if (!runtimeGlobal.__semanticEmbedder) {\n    runtimeGlobal.__semanticEmbedder = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');\n  }\n  return runtimeGlobal.__semanticEmbedder;\n}\n\nasync function queryCollection(collectionName, queryTexts, nResults) {\n  const collection = await sqRuntime.client.getCollection({\n    name: collectionName,\n    embeddingFunction: { generate: async function() { return []; } },\n  });\n  const embedder = await getEmbedder();\n  const embeddingOutput = await embedder(queryTexts, { pooling: 'mean', normalize: true });\n  const queryEmbeddings = embeddingOutput.tolist();\n\n  const queryResults = [];\n  for (let index = 0; index < queryTexts.length; index += 1) {\n    const result = await collection.query({\n      queryEmbeddings: [queryEmbeddings[index]],\n      nResults,\n      include: ['documents', 'metadatas', 'distances'],\n    });\n\n    const ids = (result.ids && result.ids[0]) || [];\n    const documents = (result.documents && result.documents[0]) || [];\n    const metadatas = (result.metadatas && result.metadatas[0]) || [];\n    const distances = (result.distances && result.distances[0]) || [];\n\n    const items = ids\n      .map(function(id, itemIndex) {\n        return {\n          id,\n          document: documents[itemIndex] || '',\n          metadata: metadatas[itemIndex] || {},\n          distance: Number(distances[itemIndex]),\n        };\n      })\n      .sort(function(left, right) {\n        return left.distance - right.distance;\n      });\n\n    queryResults.push({\n      queryText: queryTexts[index],\n      items,\n    });\n  }\n\n  return queryResults;\n}\n\nfunction buildAutomaticSynthesis(section, queryResults) {\n  const flatItems = queryResults.flatMap(function(queryResult, queryIndex) {\n    return queryResult.items.map(function(item) {\n      return {\n        ...item,\n        queryText: queryResult.queryText,\n        queryIndex: queryIndex + 1,\n      };\n    });\n  });\n\n  if (!flatItems.length) {\n    return {\n      hallazgos: [\n        `La colección \\`${section.collectionName}\\` no devolvió resultados para el pack ejecutado.`,\n        'Conviene revisar si la colección existe y si contiene embeddings consultables.',\n        'No hay todavía anclas suficientes para una lectura comparativa.',\n      ],\n      tensions: [\n        'La ausencia de resultados impide diferenciar ruido de silencio del corpus.',\n        'Sin hits, no puede estimarse si el problema está en la query o en la colección.',\n      ],\n      hypothesis: section.hypothesis || 'Hipótesis pendiente hasta disponer de resultados.',\n    };\n  }\n\n  const frequencyMap = new Map();\n  flatItems.forEach(function(item) {\n    const current = frequencyMap.get(item.id) || { id: item.id, count: 0 };\n    current.count += 1;\n    frequencyMap.set(item.id, current);\n  });\n\n  const recurring = [...frequencyMap.values()]\n    .sort(function(left, right) {\n      return right.count - left.count || left.id.localeCompare(right.id);\n    })\n    .slice(0, 3);\n\n  const bestHit = [...flatItems].sort(function(left, right) {\n    return left.distance - right.distance;\n  })[0];\n\n  const metadataSections = [...new Set(flatItems.map(function(item) {\n    return item.metadata && item.metadata.seccion ? String(item.metadata.seccion) : '?';\n  }))];\n\n  const titles = [...new Set(flatItems.map(function(item) {\n    return item.metadata && item.metadata.titulo ? String(item.metadata.titulo) : item.id;\n  }))];\n\n  const hallazgos = [\n    recurring[0]\n      ? `La pieza más recurrente del pack es \\`${recurring[0].id}\\` (${recurring[0].count} apariciones en resultados top).`\n      : `La recuperación se concentra en un único ancla de \\`${section.collectionName}\\`.`,\n    `La mejor coincidencia global llega con \\`${bestHit.id}\\` para la query «${bestHit.queryText}» (distance ${bestHit.distance.toFixed(4)}).`,\n    metadataSections.length\n      ? `La cobertura de \\`metadata.seccion\\` recorre ${metadataSections.map(function(label) { return `\\`${label}\\``; }).join(', ')}.`\n      : 'La cobertura no expone marcas de sección utilizables.',\n  ];\n\n  const tensions = [\n    metadataSections.some(function(label) { return /^0$|^1/.test(label); }) && metadataSections.some(function(label) { return /^4/.test(label); })\n      ? `Conviven materiales de marco/origen (${metadataSections.filter(function(label) { return /^0$|^1/.test(label); }).map(function(label) { return `\\`${label}\\``; }).join(', ')}) y materiales de cristalización tardía (${metadataSections.filter(function(label) { return /^4/.test(label); }).map(function(label) { return `\\`${label}\\``; }).join(', ')}).`\n      : 'Los resultados tienden a concentrarse en una misma zona narrativa del corpus.',\n    titles.length > 1\n      ? `Los hits alternan entre ${titles.slice(0, 2).map(function(title) { return `\\`${title}\\``; }).join(' y ')}${titles.length > 2 ? ', señal de pluralidad semántica.' : '.'}`\n      : 'La recuperación es compacta y gira casi por completo sobre un mismo nodo semántico.',\n  ];\n\n  const cleanedHypothesis = section.hypothesis\n    ? section.hypothesis.replace(/^¿/, '').replace(/\\?$/, '')\n    : `seguir el documento ancla \\`${bestHit.id}\\` y sus repeticiones cruzadas`;\n\n  return {\n    hallazgos,\n    tensions,\n    hypothesis: `Hipótesis operativa: ${cleanedHypothesis}.`,\n  };\n}\n\nfunction renderSectionMarkdown(section, queryResults) {\n  const synthesis = buildAutomaticSynthesis(section, queryResults);\n  const lines = [];\n\n  lines.push(`# Sección ${section.sectionNumber} — \\`${section.collectionName}\\``);\n  lines.push('');\n  lines.push('## Confirmación de detalle (sí, se puede)');\n  lines.push('Con `vector-machine mcp` / Chroma se registra el mismo nivel operativo de detalle que en Admin UI:');\n  lines.push('- `distance`');\n  lines.push('- `id`');\n  lines.push('- `document`');\n  lines.push('- `metadata`');\n  lines.push('');\n  lines.push('> Nota técnica: menor `distance` = mayor cercanía semántica.');\n  lines.push('');\n  lines.push('## Configuración de la sección');\n  lines.push(`- **Colección:** \\`${section.collectionName}\\``);\n  lines.push(`- **Etiqueta:** ${section.sectionLabel}`);\n  lines.push(`- **Agente sugerido:** \\`${section.agent}\\``);\n  lines.push(`- **Hipótesis:** ${section.hypothesis}`);\n  lines.push(`- **n_results ejecutado:** ${section.nResults.min}`);\n  lines.push('');\n  lines.push('## Query pack ejecutado');\n  lines.push(`Colección: \\`${section.collectionName}\\`  `);\n  lines.push(`\\`n_results\\`: ${section.nResults.min} por query`);\n  lines.push('');\n  section.queryTexts.forEach(function(queryText, index) {\n    lines.push(`${index + 1}. \"${queryText}\"`);\n  });\n  lines.push('');\n  lines.push('---');\n  lines.push('');\n  lines.push(`## Resultados detallados (top-${section.nResults.min} por query)`);\n  lines.push('');\n\n  queryResults.forEach(function(queryResult, queryIndex) {\n    lines.push(`### Q${queryIndex + 1}) ${queryResult.queryText}`);\n    if (!queryResult.items.length) {\n      lines.push('- Sin resultados.');\n      lines.push('');\n      return;\n    }\n\n    queryResult.items.forEach(function(item, itemIndex) {\n      lines.push(`${itemIndex + 1}. **${item.distance.toFixed(4)}** — \\`${item.id}\\` — ${buildSnippet(item.document, 120)}  `);\n      lines.push(`   \\`${stableJson(item.metadata)}\\``);\n    });\n    lines.push('');\n  });\n\n  lines.push('---');\n  lines.push('');\n  lines.push('## Cierre de sección (síntesis automática)');\n  lines.push('### Hallazgos clave');\n  synthesis.hallazgos.forEach(function(hallazgo) {\n    lines.push(`- ${hallazgo}`);\n  });\n  lines.push('');\n  lines.push('### Tensiones o contradicciones');\n  synthesis.tensions.forEach(function(tension) {\n    lines.push(`- ${tension}`);\n  });\n  lines.push('');\n  lines.push('### Hipótesis operativa');\n  lines.push(`- ${synthesis.hypothesis}`);\n  lines.push('');\n\n  return lines.join('\\n');\n}\n\nasync function writeSection(section) {\n  const queryResults = await queryCollection(section.collectionName, section.queryTexts, section.nResults.min);\n  const markdown = renderSectionMarkdown(section, queryResults);\n  sqRuntime.fs.writeFileSync(section.outputPath, markdown, 'utf8');\n  return {\n    section,\n    queryResults,\n    markdown,\n  };\n}\n\nsqRuntime.getEmbedder = getEmbedder;\nsqRuntime.queryCollection = queryCollection;\nsqRuntime.renderSectionMarkdown = renderSectionMarkdown;\nsqRuntime.writeSection = writeSection;\n\nconsole.log('✓ Motor de query, síntesis y render markdown listo.');\nvoid 0;"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "\r",
+                                "(process:17664): GLib-GObject-CRITICAL **: 21:08:21.624: invalid unclassed type '(NULL)' in class cast to '(NULL)'\r",
+                                "\r",
+                                "(process:17664): GLib-GObject-CRITICAL **: 21:08:21.633: invalid unclassed type '(NULL)' in class cast to '(NULL)'\r",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ Motor de query, síntesis y render markdown listo.",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Ejecución de control — sección 1\n\nPrimero escribimos la sección 1 para validar el contrato de salida antes de lanzar el lote completo."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const sqControl = globalThis.__sq;\nconst sectionOne = sqControl.sections.find(function(section) {\n  return section.sectionNumber === 1;\n});\n\nif (!sectionOne) {\n  throw new Error('No se encontró la sección 1 en la plantilla.');\n}\n\nconst sectionOneOutput = await sqControl.writeSection(sectionOne);\nsqControl.lastSectionOneOutput = sectionOneOutput;\n\nconsole.log(`✓ Sección 1 escrita en: ${sectionOne.outputPath}`);\nconsole.log(sectionOneOutput.markdown.split('\\n').slice(0, 28).join('\\n'));\n\nvoid 0;"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "✓ Sección 1 escrita en: c:\\Users\\aleph\\Desktop\\TEST\\tmp\\seccion-1-ml_hilo_narrativo.md",
+                                "# Sección 1 — `ml_hilo_narrativo`",
+                                "",
+                                "## Confirmación de detalle (sí, se puede)",
+                                "Con `vector-machine mcp` / Chroma se registra el mismo nivel operativo de detalle que en Admin UI:",
+                                "- `distance`",
+                                "- `id`",
+                                "- `document`",
+                                "- `metadata`",
+                                "",
+                                "> Nota técnica: menor `distance` = mayor cercanía semántica.",
+                                "",
+                                "## Configuración de la sección",
+                                "- **Colección:** `ml_hilo_narrativo`",
+                                "- **Etiqueta:** Narrativa estructural del caso",
+                                "- **Agente sugerido:** `Explore`",
+                                "- **Hipótesis:** ¿Cómo se articula el paso de contexto histórico → caso concreto → desenlace abierto?",
+                                "- **n_results ejecutado:** 5",
+                                "",
+                                "## Query pack ejecutado",
+                                "Colección: `ml_hilo_narrativo`  ",
+                                "`n_results`: 5 por query",
+                                "",
+                                "1. \"transición de indignación a institucionalización en el caso Feo Zoowoman\"",
+                                "2. \"hilo narrativo del juicio 2026 propiedad intelectual y preservación\"",
+                                "3. \"tensión entre alumbrado y ceremonia de la sala judicial\"",
+                                "4. \"del análisis de Cristóbal al salto institucional con Bustinduy\"",
+                                "5. \"dato 11007 vs 40 y cambio de marco narrativo\"",
+                                "",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "language": "markdown",
+            "source": [
+                "## Lote completo — las 5 secciones\n\nEsta celda recorre todas las secciones parseadas, ejecuta sus queries y sobrescribe los markdown de salida en `tmp/`."
+            ],
+            "outputs": []
+        },
+        {
+            "language": "typescript",
+            "source": [
+                "const sqBatch = globalThis.__sq;\nconst batchOutputs = [];\n\nfor (const section of sqBatch.sections) {\n  const output = await sqBatch.writeSection(section);\n  batchOutputs.push({\n    section: section.sectionNumber,\n    collection: section.collectionName,\n    file: sqBatch.path.basename(section.outputPath),\n    queries: section.queryTexts.length,\n    nResults: section.nResults.min,\n  });\n}\n\nsqBatch.batchOutputs = batchOutputs;\nconsole.table(batchOutputs);\nconsole.log(`✓ Se escribieron ${batchOutputs.length} archivos de sección en ${sqBatch.TMP_DIR}`);\n\nvoid 0;"
+            ],
+            "outputs": [
+                {
+                    "items": [
+                        {
+                            "mime": "application/vnd.code.notebook.stdout",
+                            "value": [
+                                "┌─────────┬─────────┬─────────────────────┬──────────────────────────────────┬─────────┬──────────┐",
+                                "│ (index) │ section │ collection          │ file                             │ queries │ nResults │",
+                                "├─────────┼─────────┼─────────────────────┼──────────────────────────────────┼─────────┼──────────┤",
+                                "│ 0       │ 1       │ 'ml_hilo_narrativo' │ 'seccion-1-ml_hilo_narrativo.md' │ 5       │ 5        │",
+                                "│ 1       │ 2       │ 'ml_piezas_media'   │ 'seccion-2-ml_piezas_media.md'   │ 5       │ 6        │",
+                                "│ 2       │ 3       │ 'ml_recursos'       │ 'seccion-3-ml_recursos.md'       │ 5       │ 5        │",
+                                "│ 3       │ 4       │ 'ml_eventos'        │ 'seccion-4-ml_eventos.md'        │ 5       │ 6        │",
+                                "│ 4       │ 5       │ 'ml_personajes'     │ 'seccion-5-ml_personajes.md'     │ 5       │ 5        │",
+                                "└─────────┴─────────┴─────────────────────┴──────────────────────────────────┴─────────┴──────────┘",
+                                "✓ Se escribieron 5 archivos de sección en c:\\Users\\aleph\\Desktop\\TEST\\tmp",
+                                "",
+                                ""
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,59 @@
+{
+	"servers": {
+		"devops-mcp-server": {
+			"type": "http",
+			"url": "http://localhost:3003"
+		},
+		"launcher-server": {
+			"type": "http",
+			"url": "http://localhost:3050"
+		},
+		"wiki-browser-server": {
+			"type": "http",
+			"url": "http://localhost:3002"
+		},
+		"state-machine-server": {
+			"type": "http",
+			"url": "http://localhost:3004"
+		},
+		"prolog-mcp-server": {
+			"type": "http",
+			"url": "http://localhost:3006"
+		},
+		"typed-prompt-mcp-server": {
+			"type": "http",
+			"url": "http://localhost:3020"
+		},
+		"copilot-logs-mcp-server": {
+			"type": "http",
+			"url": "http://localhost:3100"
+		},
+		"aaia-mcp-server": {
+			"type": "http",
+			"url": "http://localhost:3007"
+		},
+		"AlephAlpha": {
+			"type": "http",
+			"url": "http://localhost:3066"
+		},
+		"firehose-mcp-server": {
+			"type": "http",
+			"url": "http://localhost:3008"
+		},
+		"vector-machine-mcp": {
+			"command": "C:\\Users\\aleph\\.local\\bin\\uvx.exe",
+			"args": [
+				"chroma-mcp",
+				"--client-type",
+				"persistent",
+				"--data-dir",
+				"C:\\Users\\aleph\\OASIS\\aleph-scriptorium\\ARCHIVO\\PLUGINS\\VECTOR_MACHINE\\STORAGE"
+			]
+		},
+		"Chroma Docs": {
+			"url": "https://docs.trychroma.com/mcp",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}
